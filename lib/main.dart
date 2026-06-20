@@ -675,7 +675,7 @@ enum CultureIncidentType {
 
 class GameController extends ChangeNotifier {
   static const _saveKey = 'startup_office_save_v1';
-  static const schemaVersion = 6;
+  static const schemaVersion = 7;
   static const resetForIntegration = bool.fromEnvironment(
     'E2E_RESET_ON_LAUNCH',
   );
@@ -761,6 +761,11 @@ class GameController extends ChangeNotifier {
   double lastOfflineTraction = 0;
   int lastOfflineSeconds = 0;
   List<String> offlineBriefLines = <String>[];
+  double founderMomentum = 0;
+  double founderFlowSeconds = 0;
+  double comebackBurstSeconds = 0;
+  int contractChain = 0;
+  double contractChainSeconds = 0;
   double eventCooldownSeconds = 35;
   double supportBacklogSeconds = 0;
   double deliveryConfidenceSeconds = 0;
@@ -1152,8 +1157,20 @@ class GameController extends ChangeNotifier {
   double get eventRewardMultiplier =>
       (1 + eventRewardLevel * 0.12 + growthLegacyLevel * 0.05) *
       specializationEventMultiplier;
+  bool get momentumUnlocked => productStageIndex >= 1 || teamSize >= 3;
+  double get founderFlowMultiplier => founderFlowSeconds > 0 ? 1.35 : 1.0;
+  double get comebackBurstMultiplier => comebackBurstSeconds > 0 ? 1.22 : 1.0;
+  double get activeLoopMultiplier =>
+      founderFlowMultiplier * comebackBurstMultiplier;
+  double get contractChainMultiplier =>
+      1 + contractChain * 0.07 + (contractChainSeconds > 0 ? 0.08 : 0.0);
+  double get contractDurationMultiplier => math.max(
+    0.65,
+    1 - contractChain * 0.05 - (founderFlowSeconds > 0 ? 0.05 : 0.0),
+  );
   double get contractRewardMultiplier =>
       (1 + marketExpansionLevel * 0.14) *
+      contractChainMultiplier *
       trustMultiplier *
       (unlockedPlaybooks.contains(PlaybookId.enterpriseDeck) ? 1.16 : 1.0) *
       (unlockedPlaybooks.contains(PlaybookId.growthScript) ? 1.08 : 1.0);
@@ -1282,6 +1299,7 @@ class GameController extends ChangeNotifier {
         marketPulseCashMultiplier *
         parentCashMultiplier *
         specializationCashMultiplier *
+        activeLoopMultiplier *
         cashBurstMultiplier *
         focusCashMultiplier *
         marketFitMultiplier *
@@ -1306,6 +1324,7 @@ class GameController extends ChangeNotifier {
       founderOriginProductMultiplier *
       parentProductMultiplier *
       specializationProductMultiplier *
+      activeLoopMultiplier *
       challengeProductMultiplier *
       advisorCollectionMultiplier *
       advisorProductMultiplier *
@@ -1331,6 +1350,7 @@ class GameController extends ChangeNotifier {
       featureBetTrustMultiplier *
       projectTrustMultiplier *
       reputationBurstMultiplier *
+      activeLoopMultiplier *
       systemReputationMultiplier;
   double get creditsPerSecond =>
       Role.values.fold<double>(
@@ -1371,6 +1391,7 @@ class GameController extends ChangeNotifier {
         leadTractionMultiplier *
         boardGrowthMultiplier *
         reputationBurstMultiplier *
+        activeLoopMultiplier *
         playbookTractionMultiplier;
   }
 
@@ -1441,6 +1462,10 @@ class GameController extends ChangeNotifier {
   List<ContractType> get availableContracts => ContractType.values
       .where((contract) => isContractUnlocked(contract))
       .toList(growable: false);
+  int contractDurationSeconds(ContractType contract) => math.max(
+    20,
+    (contract.durationSeconds * contractDurationMultiplier).round(),
+  );
   int get systemLevelTotal =>
       _systemLevels.values.fold<int>(0, (sum, level) => sum + level);
   bool get hasTeamCapacity => teamSize < teamCapacity;
@@ -1813,6 +1838,7 @@ class GameController extends ChangeNotifier {
     if (tractionUnlocked) {
       traction += 0.06 * focusTractionMultiplier;
     }
+    _addMomentum(4);
     _refreshValuation();
     _checkGoals();
     notifyListeners();
@@ -1820,6 +1846,7 @@ class GameController extends ChangeNotifier {
 
   void buyTapUpgrade() => _buy('Founder Focus', tapUpgradeCost, () {
     tapLevel += 1;
+    _addMomentum(10);
     _log('Founder focus upgraded to level $tapLevel.');
   });
 
@@ -1831,6 +1858,7 @@ class GameController extends ChangeNotifier {
     }
     _buy('Office Expansion', officeUpgradeCost, () {
       officeLevel += 1;
+      _addMomentum(12);
       _log('Office expanded. Capacity is now $teamCapacity.');
       if (officeLevel == 2 || officeLevel == 5 || officeLevel == 8) {
         _log(officeMilestoneHeadline);
@@ -1857,6 +1885,7 @@ class GameController extends ChangeNotifier {
     final cost = hireCost(role);
     _buy('Hire ${role.label}', cost, () {
       _roleCounts[role] = roleCount(role) + 1;
+      _addMomentum(8);
       _log('Hired a ${role.label}. Team size: $teamSize/$teamCapacity.');
     });
   }
@@ -1875,6 +1904,7 @@ class GameController extends ChangeNotifier {
     }
     credits -= cost;
     _systemLevels[system] = systemLevel(system) + 1;
+    _addMomentum(6);
     _log('${system.label} upgraded to level ${systemLevel(system)}.');
     _refreshValuation();
     _checkGoals();
@@ -1927,6 +1957,7 @@ class GameController extends ChangeNotifier {
         'Growth unlocked feature bets. Product choices can now permanently reshape runs.',
       );
     }
+    _addMomentum(24);
     _log(
       'Product reached $productStage. ${productMilestoneHeadline(productStageIndex)}',
     );
@@ -2000,6 +2031,7 @@ class GameController extends ChangeNotifier {
         'Acquisition unlocked parent-company directives and earn-out pressure.',
       );
     }
+    _addMomentum(22);
     _log(
       'Raised $fundingStage. Cash injection: ${formatNumber(roundCash)}. ${fundingMilestoneHeadline(fundingStageIndex)}',
     );
@@ -2311,6 +2343,7 @@ class GameController extends ChangeNotifier {
     }
     activeEvent = null;
     eventCooldownSeconds = 55 * eventCooldownMultiplier;
+    _addMomentum(18);
     _refreshValuation();
     _checkGoals();
     save();
@@ -2688,6 +2721,7 @@ class GameController extends ChangeNotifier {
     permanentOfflineMinutes += mission.permanentOfflineMinutesReward;
     customerTrust += mission.trustReward;
     teamMorale += mission.moraleReward;
+    _addMomentum(16);
     _log(
       '${mission.cadence.label} mission claimed: ${mission.title} (${liveOpsRewardText(mission)}).',
     );
@@ -2711,6 +2745,7 @@ class GameController extends ChangeNotifier {
     marketExpansionLevel += 1;
     traction += 6 + marketExpansionLevel * 2;
     reputation += 14 + marketExpansionLevel * 4;
+    _addMomentum(20);
     _log(
       'Opened market expansion Lv.$marketExpansionLevel. Contracts now hit harder.',
     );
@@ -2792,11 +2827,12 @@ class GameController extends ChangeNotifier {
     }
     marketInsight -= insightCost;
     activeContract = contract;
-    activeContractSeconds = contract.durationSeconds.toDouble();
+    activeContractSeconds = contractDurationSeconds(contract).toDouble();
     customerTrust -= contract == ContractType.channelPartnership ? 3 : 0;
     teamMorale -= contract == ContractType.enterpriseRollout ? 4 : 1;
+    _addMomentum(10);
     _log(
-      'Contract started: ${contract.label}. Delivery ETA ${contract.durationSeconds}s. Success chance ${(contractSuccessChance(contract) * 100).round()}%.',
+      'Contract started: ${contract.label}. Delivery ETA ${contractDurationSeconds(contract)}s. Success chance ${(contractSuccessChance(contract) * 100).round()}%.',
     );
     save();
     notifyListeners();
@@ -2813,8 +2849,7 @@ class GameController extends ChangeNotifier {
         contract.baseCashReward *
         contractRewardMultiplier *
         switch (contract) {
-          ContractType.enterpriseRollout ||
-          ContractType.governmentTender
+          ContractType.enterpriseRollout || ContractType.governmentTender
               when unlockedPlaybooks.contains(PlaybookId.enterpriseDeck) =>
             1.12,
           ContractType.startupPilot || ContractType.channelPartnership
@@ -2832,6 +2867,8 @@ class GameController extends ChangeNotifier {
     reputation += 8 + marketExpansionLevel * 3;
     traction += productStageIndex >= 4 ? 4 + marketExpansionLevel * 2 : 0;
     contractWins += 1;
+    contractChain = math.min(5, contractChain + 1);
+    contractChainSeconds = 150;
     customerTrust += switch (contract) {
       ContractType.startupPilot => 8,
       ContractType.talentBrandSprint => 10,
@@ -2855,7 +2892,13 @@ class GameController extends ChangeNotifier {
     if (rareDropText.isNotEmpty) {
       lastContractSummary = '$lastContractSummary $rareDropText';
     }
+    if (contractChain >= 3 && contractChain % 3 == 0) {
+      featureBetTokens += 1;
+      lastContractSummary =
+          '$lastContractSummary Chain reward: +1 feature bet token.';
+    }
     readyContract = null;
+    _addMomentum(20);
     _log('Contract closed: $lastContractSummary');
     _refreshValuation();
     _checkGoals();
@@ -3059,8 +3102,7 @@ class GameController extends ChangeNotifier {
       'Failure: -6 trust, -4 morale, small reputation hit.',
     ContractType.talentBrandSprint =>
       'Failure: -8 morale, weaker hiring pipeline, -4 trust.',
-    ContractType.smbRollout =>
-      'Failure: -8 trust, -6 morale, +1 crisis.',
+    ContractType.smbRollout => 'Failure: -8 trust, -6 morale, +1 crisis.',
     ContractType.channelPartnership =>
       'Failure: -10 trust, -8 morale, event backlash.',
     ContractType.enterpriseRollout =>
@@ -3071,6 +3113,15 @@ class GameController extends ChangeNotifier {
 
   List<String> get activeConsequenceLabels {
     final labels = <String>[];
+    if (founderFlowSeconds > 0) {
+      labels.add('Founder flow ${founderFlowSeconds.ceil()}s');
+    }
+    if (comebackBurstSeconds > 0) {
+      labels.add('Return surge ${comebackBurstSeconds.ceil()}s');
+    }
+    if (contractChain > 0) {
+      labels.add('Deal chain x$contractChain');
+    }
     if (supportBacklogSeconds > 0) {
       labels.add('Support backlog ${supportBacklogSeconds.ceil()}s');
     }
@@ -3080,9 +3131,12 @@ class GameController extends ChangeNotifier {
     if (recruitingPipelineSeconds > 0) {
       labels.add('Hiring pipeline ${recruitingPipelineSeconds.ceil()}s');
     }
-    if (viralBoostSeconds > 0) labels.add('Revenue burst ${viralBoostSeconds.ceil()}s');
-    if (investorBuzzSeconds > 0) labels.add('Board buzz ${investorBuzzSeconds.ceil()}s');
-    if (recruitingRushSeconds > 0) labels.add('Hiring rush ${recruitingRushSeconds.ceil()}s');
+    if (viralBoostSeconds > 0)
+      labels.add('Revenue burst ${viralBoostSeconds.ceil()}s');
+    if (investorBuzzSeconds > 0)
+      labels.add('Board buzz ${investorBuzzSeconds.ceil()}s');
+    if (recruitingRushSeconds > 0)
+      labels.add('Hiring rush ${recruitingRushSeconds.ceil()}s');
     return labels;
   }
 
@@ -3332,6 +3386,11 @@ class GameController extends ChangeNotifier {
   }
 
   void dismissOfflineSummary() {
+    if (lastOfflineSeconds >= 600) {
+      comebackBurstSeconds = math.max(comebackBurstSeconds, 90);
+      founderMomentum = math.max(founderMomentum, 35);
+      _log('Re-entry surge active for 90s. Ride the return spike.');
+    }
     offlineSummaryPending = false;
     offlineBriefLines = <String>[];
     notifyListeners();
@@ -3396,6 +3455,11 @@ class GameController extends ChangeNotifier {
       'builderLegacyLevel': builderLegacyLevel,
       'operatorLegacyLevel': operatorLegacyLevel,
       'rainmakerLegacyLevel': rainmakerLegacyLevel,
+      'founderMomentum': founderMomentum,
+      'founderFlowSeconds': founderFlowSeconds,
+      'comebackBurstSeconds': comebackBurstSeconds,
+      'contractChain': contractChain,
+      'contractChainSeconds': contractChainSeconds,
       'eventCooldownSeconds': eventCooldownSeconds,
       'supportBacklogSeconds': supportBacklogSeconds,
       'deliveryConfidenceSeconds': deliveryConfidenceSeconds,
@@ -3498,6 +3562,11 @@ class GameController extends ChangeNotifier {
     builderLegacyLevel = integer('builderLegacyLevel');
     operatorLegacyLevel = integer('operatorLegacyLevel');
     rainmakerLegacyLevel = integer('rainmakerLegacyLevel');
+    founderMomentum = number('founderMomentum');
+    founderFlowSeconds = number('founderFlowSeconds');
+    comebackBurstSeconds = number('comebackBurstSeconds');
+    contractChain = integer('contractChain');
+    contractChainSeconds = number('contractChainSeconds');
     eventCooldownSeconds =
         (json['eventCooldownSeconds'] as num?)?.toDouble() ?? 35;
     supportBacklogSeconds =
@@ -3758,9 +3827,22 @@ class GameController extends ChangeNotifier {
       .fold<int>(0, (sum, role) => sum + roleCount(role));
 
   void _tickTimedSystems(double seconds) {
+    founderMomentum = math.max(
+      0,
+      founderMomentum - seconds * (founderFlowSeconds > 0 ? 0.4 : 1.6),
+    );
+    founderFlowSeconds = math.max(0, founderFlowSeconds - seconds);
+    comebackBurstSeconds = math.max(0, comebackBurstSeconds - seconds);
+    contractChainSeconds = math.max(0, contractChainSeconds - seconds);
     supportBacklogSeconds = math.max(0, supportBacklogSeconds - seconds);
-    deliveryConfidenceSeconds = math.max(0, deliveryConfidenceSeconds - seconds);
-    recruitingPipelineSeconds = math.max(0, recruitingPipelineSeconds - seconds);
+    deliveryConfidenceSeconds = math.max(
+      0,
+      deliveryConfidenceSeconds - seconds,
+    );
+    recruitingPipelineSeconds = math.max(
+      0,
+      recruitingPipelineSeconds - seconds,
+    );
     viralBoostSeconds = math.max(0, viralBoostSeconds - seconds);
     investorBuzzSeconds = math.max(0, investorBuzzSeconds - seconds);
     recruitingRushSeconds = math.max(0, recruitingRushSeconds - seconds);
@@ -3796,7 +3878,9 @@ class GameController extends ChangeNotifier {
         activeContract = null;
         if (_contractSucceeded(contract)) {
           readyContract = contract;
-          _log('Contract ready to close: ${readyContract!.label}. Claim the payout.');
+          _log(
+            'Contract ready to close: ${readyContract!.label}. Claim the payout.',
+          );
         } else {
           _applyContractFailure(contract);
         }
@@ -3872,12 +3956,12 @@ class GameController extends ChangeNotifier {
   bool _contractSucceeded(ContractType contract) {
     final roll =
         (contractWins * 13 +
-                teamSize * 3 +
-                _eventRotationIndex * 7 +
-                productStageIndex * 11 +
-                fundingStageIndex * 5 +
-                marketExpansionLevel * 17) %
-            100;
+            teamSize * 3 +
+            _eventRotationIndex * 7 +
+            productStageIndex * 11 +
+            fundingStageIndex * 5 +
+            marketExpansionLevel * 17) %
+        100;
     return roll < (contractSuccessChance(contract) * 100).round();
   }
 
@@ -3924,6 +4008,8 @@ class GameController extends ChangeNotifier {
         contract == ContractType.enterpriseRollout) {
       supportBacklogSeconds = math.max(supportBacklogSeconds, 80);
     }
+    contractChain = 0;
+    contractChainSeconds = 0;
     lastContractSummary =
         '${contract.label} slipped: -${trustLoss.toStringAsFixed(0)} trust, -${moraleLoss.toStringAsFixed(0)} morale.';
     _log('Contract failed: $lastContractSummary');
@@ -3935,8 +4021,12 @@ class GameController extends ChangeNotifier {
 
   String _awardRareContractDrop(ContractType contract) {
     final signals =
-        customerTrust + teamMorale + productStageIndex * 8 + marketExpansionLevel * 12;
-    final milestoneRoll = (signals.floor() + contractWins * 9 + _eventRotationIndex) % 4;
+        customerTrust +
+        teamMorale +
+        productStageIndex * 8 +
+        marketExpansionLevel * 12;
+    final milestoneRoll =
+        (signals.floor() + contractWins * 9 + _eventRotationIndex) % 4;
     if (contract == ContractType.governmentTender && milestoneRoll <= 1) {
       founderReputation += 1;
       boardInfluence += 1;
@@ -4123,6 +4213,11 @@ class GameController extends ChangeNotifier {
     activeContractSeconds = 0;
     readyContract = null;
     lastContractSummary = '';
+    founderMomentum = 0;
+    founderFlowSeconds = 0;
+    comebackBurstSeconds = 0;
+    contractChain = 0;
+    contractChainSeconds = 0;
     eventCooldownSeconds = eventCooldown;
     supportBacklogSeconds = 0;
     deliveryConfidenceSeconds = 0;
@@ -4162,6 +4257,22 @@ class GameController extends ChangeNotifier {
     if (eventLog.length > 7) eventLog.removeLast();
   }
 
+  void _addMomentum(double amount) {
+    if (!momentumUnlocked || amount <= 0) return;
+    final before = founderMomentum;
+    founderMomentum = (founderMomentum + amount).clamp(0, 100);
+    if (before < 100 && founderMomentum >= 100) {
+      founderMomentum = 35;
+      founderFlowSeconds = math.max(founderFlowSeconds, 30 + contractChain * 4);
+      if (productStageIndex >= 2) {
+        focusTokens += 1;
+      }
+      _log(
+        'Founder flow triggered: 30s burst to cash, product, traction, and contracts.',
+      );
+    }
+  }
+
   List<String> _buildOfflineBriefLines(int seconds) {
     final minutes = seconds ~/ 60;
     final lines = <String>[
@@ -4181,6 +4292,9 @@ class GameController extends ChangeNotifier {
       lines.add(
         'Word of mouth kept moving: +${formatNumber(lastOfflineTraction)} traction.',
       );
+    }
+    if (lastOfflineSeconds >= 600) {
+      lines.add('A return surge is ready. Reopening now triggers a 90s boost.');
     }
     if (readyContract != null) {
       lines.add('A contract is waiting on your desk for sign-off.');
@@ -5434,6 +5548,18 @@ class _StatsBar extends StatelessWidget {
               value: formatNumber(controller.marketInsight),
             ),
             _Metric(
+              label: 'Flow',
+              value: controller.momentumUnlocked
+                  ? '${controller.founderMomentum.toStringAsFixed(0)}%'
+                  : 'Locked',
+            ),
+            _Metric(
+              label: 'Chain',
+              value: controller.contractChain > 0
+                  ? 'x${controller.contractChain}'
+                  : '-',
+            ),
+            _Metric(
               label: 'Team',
               value: '${controller.teamSize}/${controller.teamCapacity}',
             ),
@@ -6147,6 +6273,10 @@ class _EventsPanel extends StatelessWidget {
         ),
         const SizedBox(height: 8),
         Text(
+          'Momentum ${controller.founderMomentum.toStringAsFixed(0)}% | Founder flow ${controller.founderFlowSeconds.ceil()}s | Return surge ${controller.comebackBurstSeconds.ceil()}s',
+        ),
+        const SizedBox(height: 8),
+        Text(
           'Trust ${controller.customerTrust.toStringAsFixed(0)} | Morale ${controller.teamMorale.toStringAsFixed(0)}',
         ),
         if (controller.activeConsequenceLabels.isNotEmpty) ...[
@@ -6289,6 +6419,27 @@ class _RoadmapPanel extends StatelessWidget {
           controller.opsCommandSynergyUnlocked
               ? 'Ops command active: stronger credits and process leverage.'
               : 'Need 5 ops/data/finance hires for the operations milestone.',
+        ),
+        const SizedBox(height: 10),
+        const Text(
+          'Retention hooks now online',
+          style: TextStyle(fontWeight: FontWeight.w900),
+        ),
+        const SizedBox(height: 6),
+        Text(
+          controller.momentumUnlocked
+              ? 'Founder momentum is live. Push taps, hires, ships, and contracts into a 100% bar to trigger a 30s founder flow burst.'
+              : 'Prototype or 3 hires unlock founder momentum bursts.',
+        ),
+        const SizedBox(height: 6),
+        Text(
+          controller.contractsUnlocked
+              ? 'Deal chain active: consecutive contract closes shorten future delivery time and raise payouts.'
+              : 'Prototype unlocks contracts, then streaking deals becomes a core mid-game loop.',
+        ),
+        const SizedBox(height: 6),
+        Text(
+          'Long offline sessions now convert into a short re-entry surge so coming back immediately feels rewarding.',
         ),
       ],
     );
@@ -6456,13 +6607,18 @@ class _ExpansionPanel extends StatelessWidget {
             ),
             const SizedBox(height: 8),
             Text(
+              'Deal chain x${controller.contractChain} | Reward x${controller.contractChainMultiplier.toStringAsFixed(2)} | Delivery x${controller.contractDurationMultiplier.toStringAsFixed(2)}',
+              style: const TextStyle(fontSize: 12),
+            ),
+            const SizedBox(height: 8),
+            Text(
               'Contracts now roll against trust, morale, playbooks, and event consequences. Safer runs close deals more reliably.',
               style: const TextStyle(fontSize: 12),
             ),
             if (controller.activeContract != null) ...[
               const SizedBox(height: 8),
               Text(
-                'Active contract: ${controller.activeContract!.label} | ${controller.activeContractSeconds.ceil()}s left | ${(controller.contractSuccessChance(controller.activeContract!) * 100).round()}% success',
+                'Active contract: ${controller.activeContract!.label} | ${controller.activeContractSeconds.ceil()}s left | ${(controller.contractSuccessChance(controller.activeContract!) * 100).round()}% success | Chain x${controller.contractChain}',
               ),
             ],
             if (controller.readyContract != null) ...[
@@ -6523,7 +6679,7 @@ class _ExpansionPanel extends StatelessWidget {
                           style: const TextStyle(fontWeight: FontWeight.w900),
                         ),
                       ),
-                      Text('${contract.durationSeconds}s'),
+                      Text('${controller.contractDurationSeconds(contract)}s'),
                     ],
                   ),
                   const SizedBox(height: 6),

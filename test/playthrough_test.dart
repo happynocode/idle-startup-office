@@ -212,35 +212,40 @@ void main() {
     expect(controller.brandNetworkLevel, 1);
   });
 
-  test('contract failures create visible downside and event choices alter delivery', () {
-    final controller = GameController();
+  test(
+    'contract failures create visible downside and event choices alter delivery',
+    () {
+      final controller = GameController();
 
-    controller.productStageIndex = 4;
-    controller.fundingStageIndex = 2;
-    controller.marketExpansionLevel = 1;
-    controller.marketInsight = 500;
-    controller.customerTrust = 92;
-    controller.teamMorale = 90;
-    controller.activeEvent = StartupEventType.viralMoment;
+      controller.productStageIndex = 4;
+      controller.fundingStageIndex = 2;
+      controller.marketExpansionLevel = 1;
+      controller.marketInsight = 500;
+      controller.customerTrust = 92;
+      controller.teamMorale = 90;
+      controller.activeEvent = StartupEventType.viralMoment;
 
-    controller.resolveEvent(controller.primaryEventChoiceLabel);
-    expect(controller.supportBacklogSeconds, greaterThan(0));
+      controller.resolveEvent(controller.primaryEventChoiceLabel);
+      expect(controller.supportBacklogSeconds, greaterThan(0));
 
-    controller.fundingStageIndex = 1;
-    controller.customerTrust = 52;
-    controller.teamMorale = 48;
-    final failureChance = controller.contractSuccessChance(
-      ContractType.channelPartnership,
-    );
-    expect(failureChance, lessThan(0.68));
+      controller.fundingStageIndex = 1;
+      controller.customerTrust = 52;
+      controller.teamMorale = 48;
+      final failureChance = controller.contractSuccessChance(
+        ContractType.channelPartnership,
+      );
+      expect(failureChance, lessThan(0.68));
 
-    controller.startContract(ContractType.channelPartnership);
-    controller.tick(ContractType.channelPartnership.durationSeconds.toDouble());
+      controller.startContract(ContractType.channelPartnership);
+      controller.tick(
+        ContractType.channelPartnership.durationSeconds.toDouble(),
+      );
 
-    expect(controller.readyContract, isNull);
-    expect(controller.lastContractSummary, contains('slipped'));
-    expect(controller.crisisLevel, greaterThan(0));
-  });
+      expect(controller.readyContract, isNull);
+      expect(controller.lastContractSummary, contains('slipped'));
+      expect(controller.crisisLevel, greaterThan(0));
+    },
+  );
 
   test('feature bets and board demands create mid-game systemic rewards', () {
     final controller = GameController();
@@ -551,4 +556,57 @@ void main() {
       expect(controller.cleanBootstrappedRecord, isFalse);
     },
   );
+
+  test(
+    'momentum bursts and comeback surge create active re-engagement hooks',
+    () {
+      final controller = GameController();
+
+      controller.productStageIndex = 1;
+      for (var i = 0; i < 40; i++) {
+        controller.founderTap();
+      }
+
+      expect(controller.founderFlowSeconds, greaterThan(0));
+      expect(controller.founderMomentum, lessThan(100));
+      expect(controller.activeLoopMultiplier, greaterThan(1));
+
+      controller.lastOfflineSeconds = 900;
+      controller.offlineSummaryPending = true;
+      controller.dismissOfflineSummary();
+
+      expect(controller.comebackBurstSeconds, greaterThan(0));
+      expect(controller.activeLoopMultiplier, greaterThan(1.2));
+    },
+  );
+
+  test('deal chains reward consecutive contract wins and break on failure', () {
+    final controller = GameController();
+
+    controller.productStageIndex = 4;
+    controller.fundingStageIndex = 2;
+    controller.marketExpansionLevel = 1;
+    controller.marketInsight = 500;
+    controller.customerTrust = 110;
+    controller.teamMorale = 110;
+
+    controller.startContract(ContractType.startupPilot);
+    controller.tick(controller.activeContractSeconds);
+    controller.claimReadyContract();
+
+    expect(controller.contractChain, 1);
+    expect(controller.contractChainMultiplier, greaterThan(1));
+    expect(
+      controller.contractDurationSeconds(ContractType.enterpriseRollout),
+      lessThan(ContractType.enterpriseRollout.durationSeconds),
+    );
+
+    controller.customerTrust = 65;
+    controller.teamMorale = 52;
+    controller.marketInsight = 500;
+    controller.startContract(ContractType.channelPartnership);
+    controller.tick(controller.activeContractSeconds);
+
+    expect(controller.contractChain, 0);
+  });
 }
