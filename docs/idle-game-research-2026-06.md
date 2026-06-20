@@ -1,788 +1,591 @@
-# Idle Game Research and Recommendation
+# Idle Game 重新调研报告
 
-日期: 2026-06-20  
+日期: `2026-06-20`  
 项目: `Startup Office Idle`  
-代码观察: `/Volumes/ExternalSSD/idle game/lib/main.dart`
+代码参考: `/Volumes/ExternalSSD/idle game/lib/main.dart`
 
-## 0. 调研范围与假设
+## 1. 这次怎么调研
 
-- 你的要求里提到“每一步、每一关、每一个要素”，我这里将其落地为:
-  - 每款游戏的核心循环
-  - 它的主要里程碑奖励
-  - 它靠什么把玩家往下一层推进
-  - 哪些机制最值得 `Startup Office Idle` 借鉴
-- 我没有把 50+ 款游戏做逐分钟 walkthrough，而是做了更适合产品设计落地的 `benchmark breakdown`。
-- 本文同时使用了:
-  - 代表作品的官方页面、官方/社区 wiki、设计分享
-  - Steam / 官方站点的玩法描述
-  - 广度样本的交叉对照，确认哪些机制是行业共性，哪些只是个例
+这份文档是重新调研后从零写的，没有沿用上一版文档内容。
 
-## 1. 先说结论
+这次我把你的需求拆成 3 个问题:
 
-你现在这款游戏的问题，不是“完全没内容”，而是:
+1. 别人的 Idle Game 在 milestone 到来时，通常给玩家什么奖励
+2. 至少 50 款代表性 Idle / Incremental 游戏，分别靠什么机制留住玩家
+3. 结合你当前这个 startup 题材，哪些机制最值得引入，哪些现在还缺
 
-1. 你已经有很多系统名字了，但大多数系统给的是 `倍率`，不是 `玩法变化`
-2. 你的 milestone 节奏存在，但奖励不够“改变行为”
-3. 你的主题是 startup/company growth，这个题材天然适合做事件、分支、危机、融资、组织管理、市场扩张，但现在还没有被真正用成 hook
-4. 你的 prestige 已经存在，但更像 `数值重开`，还不够像 `开新层`
+说明:
+
+- Idle Game 很多并没有“关卡”这个固定概念，所以我把“每一步、每一关、每一个要素”统一映射成:
+  - `早期循环`: 玩家前 30 秒到 5 分钟在做什么
+  - `中期推进`: milestone、解锁、自动化、任务、事件、build choice
+  - `长期循环`: prestige、meta progression、收藏、挑战、离线回流
+- 这次不是做 50 款游戏的逐分钟攻略，而是做产品设计维度的 benchmark。
+- 样本池来自:
+  - 官方站 / 官方 Steam 页面 / 官方或社区 wiki
+  - `r/incremental_games` 社区列表
+  - `IncrementalDB` 数据库
+  - Wikipedia 对类型的综述
+  - Kongregate / GDC / 学术论文对 idle genre 的机制分析
+
+## 2. 先说结论
+
+你现在这款游戏不缺“系统名字”，缺的是 `真正改变玩家行为的中期循环`。
+
+更具体地说，你现在最需要补的是这 5 件事:
+
+1. `Milestone 奖励要从加倍率，改成开新玩法`
+2. `Contracts / Dispatch / Missions` 要变成主循环，而不是边角奖励
+3. `Events` 要有后果，不能只是一次性 burst
+4. `Playbooks / Advisors / Founder Meta` 要从数值卡，变成 build 卡
+5. `Prestige` 要更像“开新层”，不是“把同一轮再刷一遍”
 
 一句话总结:
 
-> 现在这版更像“可以运行的 idle 骨架”，还不是“会让人停不下来的 idle 产品”。
+> 现在这版更像“有很多 tab 的 idle 原型”，还不是“会让玩家一直惦记下一次登录”的 idle 产品。
 
-## 2. 你当前版本已经有什么
+## 3. 你现在这个游戏已经有什么
 
-基于 `/Volumes/ExternalSSD/idle game/lib/main.dart` 观察，你已经有这些层:
+基于 `/Volumes/ExternalSSD/idle game/lib/main.dart`，你已经有这些骨架:
 
 - `手动点击 + 自动收入`
-- `Team / Office / Product / Funding / Events / Advisors / Challenges / Expansion / Prestige / Quests / Achievements`
-- 团队人数阈值解锁节奏:
-  - `3 hires` 解锁 sprint automation
-  - `6 hires` 解锁 lead multiplier
-  - `10 hires` 解锁 cross-functional pod
-  - `20 hires` 解锁 culture engine
+- `Team / Product / Funding / Events / Advisors / Challenges / Expansion / Prestige / Quests / Shop`
 - 产品阶段:
   - `Idea -> Prototype -> MVP -> Beta -> Launch -> Growth -> Scale -> Unicorn Platform`
 - 融资阶段:
   - `Bootstrapped -> Pre-seed -> Seed -> Series A -> Series B -> Series C -> IPO -> Acquired`
-- 已有 burst / event 雏形:
+- 事件:
   - `Viral Moment`
   - `Investor Call`
-  - `Recruiting Rush`
-- 已有 build choice 雏形:
+  - `Talent Surge`
+- 合同:
+  - `Startup Pilot`
+  - `Talent Brand Sprint`
+  - `SMB Rollout`
+  - `Channel Partnership`
+  - `Enterprise Rollout`
+  - `Government Tender`
+- build 分支:
   - `CompanyFocus`
   - `ProductStrategy`
   - `CapitalPolicy`
-- 已有 challenge / advisor / specialization / legacy token 雏形
+  - `FounderSpecialization`
+  - `FounderOrigin`
+- meta / collection 雏形:
+  - `Advisors`
+  - `Playbooks`
+  - `Challenges`
+  - `Achievements`
+  - `Founder Reputation`
+  - `Portfolio Points`
 
-代码里几个关键观察:
+所以问题不是“没内容”，而是:
 
-- 团队阈值和功能门槛是存在的，但多数仍是倍率型收益，而非新玩法开启
-- `product` 和 `funding` 的 milestone 已经会给 token / choice，但奖励密度仍偏薄
-- `prestige()` 会给 `Prestige Points / Legacy Tokens / Founder Reputation`，但重开后主要还是回到同一条成长轨道
-- 事件有两选一，方向是对的，但目前仍偏“短 burst 奖励”，缺少长期后果和组合效应
+- 很多系统目前还是 `倍率型奖励`
+- milestone 的 `行为改变力度不够`
+- contract、event、advisor、playbook 都有雏形，但还没成为玩家主动围绕它规划的核心循环
 
-## 3. 现在为什么会觉得单调
+## 4. 行业里最常见的 Idle Game 强要素
 
-核心原因不是数字小，而是循环层次太少。
+结合类型综述、设计分析和 50 款 benchmark，高频要素基本集中在下面 10 个:
 
-### 3.1 你现在更偏线性增长
+1. `Prestige / Reset`
+2. `Milestone Unlocks`
+3. `Automation`
+4. `Multiple Currencies`
+5. `Short Burst Events`
+6. `Challenges / Restricted Runs`
+7. `Achievements that also grant power`
+8. `Collection / Artifacts / Cards / Pets / Relics`
+9. `Build Choice / Faction / Loadout`
+10. `Offline Progress + Return Rewards`
 
-虽然系统很多，但玩家大部分时间的真实行为仍然是:
+这些机制不是每个游戏都会全有，但优秀作品往往至少具备其中 5 到 7 个。
 
-1. 点一下
-2. 雇人
-3. 等数字涨
-4. 升产品 / 融资
-5. 重复
+## 5. Milestone 到来时，别人通常给玩家什么
 
-这会导致:
+这是这次调研里最重要的一部分。
 
-- 决策张力不够
-- 里程碑前的期待感不够
-- 回流理由不够
-- “再玩一下就能解锁新东西”的拉力不够强
-
-### 3.2 你现在的里程碑，多数是“变强”，不是“变新”
-
-优秀 idle game 的 milestone 往往会带来下列至少一种变化:
-
-- 新货币
-- 新自动化
-- 新副本 / 新挑战
-- 新随机事件池
-- 新构筑分支
-- 新地图 / 新场景 / 新视觉层
-- 新重开层
-- 新长期任务线
-
-你现在很多 milestone 更像:
-
-- `+cash`
-- `+credits`
-- `+reputation`
-- `+valuation`
-- `+multiplier`
-
-这不够 hook。
-
-## 4. 网上调研后，Idle Game 最常见的强要素
-
-我把 50+ 款样本反复出现的设计要素整理成下面这套。
-
-### 4.1 Milestone 最常见的奖励类型
+### 5.1 最常见的 milestone 奖励类型
 
 1. `新系统解锁`
 - 新货币
-- 新页签
+- 新面板
 - 新区域
-- 新角色槽位
+- 新职业 / 阵容槽位
 - 新 automation
 - 新 reset 层
 
 2. `规则改变`
 - 自动购买
+- 批量购买
 - 离线收益上限提升
-- 批量购买 / 批量生产
-- 资源转化规则变化
-- 新 synergy
+- 新资源转化关系
+- 旧系统获得新用途
 
 3. `永久成长`
 - prestige currency
 - meta tree
-- 永久 multiplier
-- 收藏品
-- 账号级加成
+- 永久被动
+- 永久收藏加成
+- 下一轮更强开局
 
 4. `不确定性奖励`
-- 随机事件
-- 金色饼干 / 宝箱 / relic / artifact
+- 稀有事件
+- 随机掉落
 - 限时爆发
-- 限时合同 / 派遣
+- 宝箱 / artifact / relic / contract reward
 
 5. `玩法目标切换`
-- 从点击转为自动化
-- 从生产转为 build optimization
-- 从跑主线转为冲 challenge
-- 从单局推进转为多轮重开优化
+- 从点击切到自动化
+- 从生产切到 build optimization
+- 从主线切到 challenge
+- 从单轮推进切到多轮 reset 规划
 
-### 4.2 最能 Hook 用户的通用节奏
+### 5.2 真正常见、而且有效的 milestone 模板
 
-1. `10-30 秒` 级别的短反馈
-- 总有一个小东西可以买
-- 总有一个条能涨满
+- `第一次自动化`
+  - 玩家从“手动点”转入“配置系统”
+- `第一次 prestige`
+  - 玩家理解“重开不是失败，而是下一层开始”
+- `第一次挑战通关`
+  - 给 run-defining 的永久奖励
+- `第一次稀有掉落 / 收藏成套`
+  - 给玩家长期 farm 理由
+- `第一次世界切换`
+  - 例如地图、宇宙、子系统、第二产品线
 
-2. `2-5 分钟` 级别的中反馈
-- 新建筑、新角色、新按钮、新分支
+### 5.3 结论
 
-3. `15-60 分钟` 级别的长反馈
-- 可重开
-- 可开挑战
-- 可冲下一层 prestige
+优秀 idle game 的 milestone 很少只是:
 
-4. `离开游戏也有期待`
-- 离线收益
-- 计时合同
-- 定时收菜
-- 被动任务完成
+- `+10%`
+- `+cash`
+- `+speed`
 
-5. `回来就领奖`
-- 离线结算
-- 新成就
-- 新事件
-- 新合同
-- 新随机掉落
+更常见的是:
 
-### 4.3 真正让人上瘾的不是“数字变大”，而是这四件事同时成立
+- `开新按钮`
+- `开新循环`
+- `开新资源`
+- `开新风险`
+- `开新身份`
 
-1. `确定性奖励`
-- 再 20 秒我就能买到这个
-
-2. `不确定性奖励`
-- 下一次事件 / 合同 / relic 会不会出好东西
-
-3. `永久成长`
-- 这次重开不白玩
-
-4. `系统揭示`
-- 下一层到底会开什么新机制
-
-## 5. 50+ 款 Idle Game Benchmark
+## 6. 50 款 Idle / Incremental 游戏 benchmark
 
 说明:
 
-- 这里优先记录每款游戏最值得参考的 `核心循环 / milestone / hook`
-- 不追求每个 UI 小按钮，而追求“它为什么能让人继续玩”
-- 深度代表样本和广度样本混合，总计 60 款
+- 下面的“关键设计”是设计摘要，不是 full walkthrough。
+- 我重点记录每款游戏最值得学的 `核心循环 / milestone / 留存钩子 / 对你项目的启发`。
 
-| # | 游戏 | 核心循环 | 关键里程碑 / 奖励 | 它的 Hook | 适合你借鉴的点 |
+| # | 游戏 | 关键设计 | milestone / 奖励 | 留存 hook | 对你最有用的点 |
 |---|---|---|---|---|---|
-| 1 | Cookie Clicker | 点饼干 -> 买建筑 -> 吃爆发事件 -> Ascend | Golden Cookie, Achievements, Milk, Heavenly Chips | 随机爆发 + 成就也能变强 | 让成就和事件进入主成长线 |
-| 2 | Clicker Heroes | 杀怪 -> 招英雄 -> 升级 -> Ascend / Transcend | Hero breakpoints, Ancients, Transcendence | 双层 reset 把重开做成长期目标 | 你的 Prestige 需要更深的第二层 |
-| 3 | Realm Grinder | 赚钱 -> 选 faction -> Abdication -> Reincarnation | Faction unlocks, researches, challenges | 构筑分支极强，重玩价值高 | 给 startup 路线真正做流派分化 |
-| 4 | Antimatter Dimensions | 买维度 -> Infinity -> Eternity -> Reality | Autobuyers, challenge clears, new prestige layers | 每次 prestige 都像新游戏 | 让 IPO / Prestige 打开新规则，而不只是加倍率 |
-| 5 | Kittens Game | 多资源链 -> 建筑 -> 科技 -> 重开 | Paragon, Metaphysics, faith systems | 资源链和长期系统化很上头 | 你的 startup 非常适合做组织系统化 |
-| 6 | Trimps | 生产 -> 区域推进 -> Portal -> Challenge | Portal, Heirlooms, challenge perks | 限制规则让每轮都不同 | 挑战模式可以是核心 longevity 系统 |
-| 7 | Universal Paperclips | 工厂 -> 市场 -> 探索 -> 宇宙探针 | 阶段切换本身就是奖励 | “玩法变新”大于“数字变大” | 让公司从 office 进化到 platform / ecosystem |
-| 8 | A Dark Room | 文本资源 -> 村庄 -> 探索 -> 战斗 | 一个个新系统渐进展开 | 揭示感很强 | 早期简单可以，但必须快速 unfold |
-| 9 | Candy Box! | 先极简积累 -> 后续逐步开世界 | 菜单和地图逐步展开 | 神秘感驱动继续玩 | 开局可简单，但 5-10 分钟内必须惊喜 |
-| 10 | Candy Box 2 | 资源 -> 任务 -> 装备 -> 地图 | 探索 / quest / 装备解锁 | 增量式 reveal 很强 | 你的“市场版图”可做地图揭示 |
-| 11 | Progress Quest | 零玩家自动推进 | 观看进度本身就是乐趣 | 看系统自己跑也爽 | 办公室应该更“会演戏” |
-| 12 | AdVenture Capitalist | 买产业 -> Manager 自动化 -> Angels | Manager automation, Angel investors | 自动化解锁改变操作需求 | 招 manager / lead 应该真正替玩家操作 |
-| 13 | AdVenture Communist | 任务驱动资源链 | Missions, researchers, timed events | 任务不断推着玩家前进 | 你需要更强的任务驱动 |
-| 14 | Egg, Inc. | 农场增长 -> Prestige -> Contracts -> Artifacts | Contracts, Soul Eggs, Epic Research | 合同让回流强、meta 强 | “客户合同 / 企业订单”非常适配你的题材 |
-| 15 | Cell to Singularity | 主模拟 + 子模拟并行 | Mesozoic Valley, Beyond, Reality Engine | 子系统反哺主线 | 可做“海外市场”或“新产品线”子地图 |
-| 16 | Idle Champions | 阵容排布 -> 推关 -> Variant | Formation strategy, patrons, variants | 不是只堆数值，而是堆组合 | 团队站位 / 组织配置可做更深 |
-| 17 | Idle Slayer | 跑酷 + idle -> Ascension -> Ultra Ascension | Minions, divinities, UA | 多层重开 + 定时 minion | 可以加入“高管任务 / 部门派遣” |
-| 18 | NGU Idle | rebirth -> boss -> wishes -> adventure | 高频 rebirth + 面板海量展开 | 总有新系统出现 | 你的中后期要更密集地开新层 |
-| 19 | Mr.Mine | 挖深度 -> 新层 -> relic / super miners | 深度 milestone 持续开新内容 | 每一段深度都有新目标 | 你的产品成熟度 / 公司规模需要深度里程碑表 |
-| 20 | Leaf Blower Revolution | 多货币、多宠物、多挑战、多 prestige | Leaves, pets, challenge layers | 内容 churn 非常高 | 你现在货币层太薄 |
-| 21 | Swarm Simulator | 繁殖 -> 突变 -> Ascend | Mutagen and mutation trees | 永久成长和 build choice 很紧 | 可做组织文化 / 技术债基因树 |
-| 22 | Spaceplan | 点击 -> 自动化 -> 叙事推进 | 叙事和增长同步推进 | 有故事张力 | 你的 startup 题材应更有故事感 |
-| 23 | Almost a Hero | 团队推进 -> 失败 -> Mythstones meta | 失败也推进账号成长 | 卡关不会白费 | 失败需要给 meta 奖励 |
-| 24 | Zombidle | 点 / 法术 / 破坏 -> 重开 | 主动技能 burst 很关键 | 打断单调节奏 | 加主动技能会明显改善手感 |
-| 25 | Crush Crush | 时间资源 -> 多角色并行推进 | 多角色目标并行 | 并行目标比单线目标更黏人 | 可并行推进投资人 / 客户 / 团队关系 |
-| 26 | Bit City | 赚钱 -> 升级城市 -> 开新区 | 视觉成长就是奖励 | 看城市变化很爽 | 办公室 / 楼层视觉变化要更明显 |
-| 27 | Make It Rain | 点钱 -> 升级 -> prestige | 极强即时反馈 | 一次点击就很爽 | 点击反馈必须更强 |
-| 28 | Lego Tower | 建楼层 -> 收居民 -> 完成收集 | 新楼层是清晰 milestone | 目标清晰且可视化 | 办公室扩张很适合做楼层系统 |
-| 29 | Rusty's Retirement | 低打扰放置农场 | 挂后台也有生活感 | 轻陪伴感很强 | 你的办公室可以更像“活着的场景” |
-| 30 | PokeClicker | 打地区 -> 集图鉴 -> 重刷 | 收藏完成度驱动回流 | 收集党会一直回来 | 你缺收藏型目标 |
-| 31 | Shark Game | 多资源文明演化 | 新资源改变最优解 | 资源结构层层变化 | cash/credits/valuation 还不够 |
-| 32 | CivClicker | 人口 -> 建筑 -> 资源链 | 发展层递进明确 | 文明感强 | startup 从小团队到组织体系可借鉴 |
-| 33 | Space Company | 资源链 -> 发电 -> 太空扩张 | 多资源门槛式推进 | 每次开新资源都很爽 | 你可以做多产品线 / 多区域经营 |
-| 34 | Crank | 小系统不断展开 | 每个解锁都改变操作重点 | reveal 强于复杂 UI | 新系统展开速度可以更快 |
-| 35 | Clickpocalypse | 自动队伍冒险 | 看队伍自己跑图 | 可观察性高 | 团队执行 sprint / 销售外出可视化 |
-| 36 | Clickpocalypse II | 自动 RPG 队伍成长 | 角色成长 + loot 回流 | 自动演出很上头 | 员工可以不仅是数字 |
-| 37 | Forge & Fortune | 队伍 -> 战斗 -> 锻造 -> idle | 装备线和角色线并行 | 双循环互相推 | 可加“工具栈 / 软件栈 / 基建”装备线 |
-| 38 | Godville | 纯自动 + 文本日志 | 事件日志本身是内容 | 文案产生黏性 | Startup 日志完全可以做成亮点 |
-| 39 | Grindcraft | 资源 -> 配方 -> 新配方 | 配方树驱动长期目标 | 下一配方总在勾人 | 可做 SOP / 工具链 / 流程配方树 |
-| 40 | Wizard and Minion Idle | 法术树 + minion 层 | 新法术等于新节奏 | build planning 强 | 产品 / 增长 / 融资可拆 skill tree |
-| 41 | Campaign Clicker | 主题包装 + 升级链 | 新地区 / 新阶段 | 题材包装增强投入感 | 你的 startup 题材需要更强包装 |
-| 42 | Anti-Idle: The Game | 超多模式共存 | 内容密度超高 | 永远有事做 | 但要避免乱，必须让分支回流主循环 |
-| 43 | BubbleByte | 轻量快节奏 idle | 低摩擦回报 | 上手非常快 | 你的新手 2-3 分钟还可更紧凑 |
-| 44 | Coin Treasures | 收集 + 资源增长 | 奖励来源多元 | 多奖励源更抗疲劳 | 奖励来源不能只靠 cash |
-| 45 | A Firelit Room | 氛围叙事型 idle | 情绪和节奏比数值更重要 | 氛围本身增强回流 | 你需要更鲜明的 startup 氛围 |
-| 46 | Bacterial Takeover | 题材驱动生成链 | 主题塑造资源意义 | 玩法和题材绑定紧 | 你的系统命名要更像创业世界 |
-| 47 | City Inc | 企业 / 城市扩张 | 规模变化很直观 | “公司变大了”可感知 | 可把总部扩张做得更直观 |
-| 48 | Castle Digger | 深度推进 -> 系统解锁 | 每下潜一段开新系统 | 里程碑密度高 | 每个产品层级都应开新能力 |
-| 49 | Idle Raiders: Second Run | 队伍跑图 -> 二周目优化 | 重开本身是产品主题 | 二周目更爽 | Prestige 可包装成“下一家公司” |
-| 50 | Nano Empire | 新尺度 = 新层级 | 阶段变化改变目标 | 规模切换很有效 | 从 feature -> product -> platform -> ecosystem |
-| 51 | Arcane Incrementalist | 组合式升级路线 | 构筑乐趣高 | 规划 build 很上头 | 需要更深的路线抉择 |
-| 52 | Amino Idle | 多资源转化 | 资源结构变化 > 数字 | 结构性成长更耐玩 | valuation 不该只是结果数值 |
-| 53 | Build A Spaceship | 明确终局目标 -> 逐步建成 | 目标导向强 | 玩家总知道下一步 | 每章要有清晰终点 |
-| 54 | Cavernous II | 规划 / 自动脚本 | 优化流程本身就是玩法 | 高端玩家会钻研 | 后期可加 COO automation scripts |
-| 55 | City of Sacrifice | sacrifice 重开 | 献祭让 reset 合理化 | 失去换更大未来 | 可做“创业失败经验” |
-| 56 | House Idle Pro | 空间成长 | 房间变化就是奖励 | 空间可视化强 | 办公区装修价值很高 |
-| 57 | Idle Awards 2 | achievement-heavy | 成就直接给主线奖励 | 收成就也有战力 | 你可以更重做 achievements |
-| 58 | Idle Evolution | 形态蜕变推进 | 新形态就是新目标 | 变身感强 | startup 的 company stage 可更戏剧化 |
-| 59 | Prosperity | 长线资源管理 | 阶段策略切换 | 中后期更耐玩 | 招聘 / 融资 / 系统化要互相制约 |
-| 60 | Queslar / minimalist incremental archetype | 简 UI + 深系统 | 系统深度胜过外壳复杂 | 数学与规划驱动 | 你不一定要更花，但必须更深 |
-
-## 6. 从这 60 款游戏里抽出来的高频模式
-
-### 6.1 出现频率最高的 12 个要素
-
-1. `Prestige / Reset`
-2. `Milestone unlocks`
-3. `Automation`
-4. `Multiple currencies`
-5. `Challenges / restricted runs`
-6. `Random burst events`
-7. `Achievements with power`
-8. `Collections / relics / artifacts / pets`
-9. `Build choice / faction / loadout`
-10. `Offline progress`
-11. `Narrative reveal`
-12. `Visible world growth`
-
-### 6.2 里程碑奖励最常见的模板
-
-- `Level 10/25/50/100` 类阈值:
-  - 小倍数
-  - 自动化
-  - 新资源
-  - 新副本
-  - 新规则
-- `第一次 Prestige`:
-  - 永久货币
-  - 新技能树
-  - 新职业 / 新路线
-- `第一次 Challenge clear`:
-  - 永久特殊加成
-  - 新 build
-  - 新事件池
-- `Daily / Weekly / Contract`:
-  - 稀有 meta currency
-  - 收藏品
-  - 换皮肤 / 永久词条
-
-## 7. 你的游戏现在最缺什么
-
-这是这次调研后，我认为你最缺的 8 件事。
+| 1 | Cookie Clicker | 点击 + 建筑 + Golden Cookie + Ascension | 建筑阈值、成就、Heavenly Chips | 随机爆发和成就回流 | 事件和成就进入主成长线 |
+| 2 | Clicker Heroes | 打怪、招英雄、Ascend、Transcend | hero breakpoints、Ancients | 多层 reset | 你的 prestige 要有第二层 |
+| 3 | Realm Grinder | 挣钱、选 faction、abdication、reincarnation | faction、research、challenges | 流派分化极强 | 让 startup 路线真正不同 |
+| 4 | Antimatter Dimensions | 维度增长、Infinity、Eternity、Reality | autobuyers、新 prestige 层 | 每次 reset 都像新游戏 | IPO / Exit 要打开新规则 |
+| 5 | Kittens Game | 资源链、建筑、科技、重开 | Paragon、Metaphysics | 规划感和长期 meta | 组织系统化、资源链更深 |
+| 6 | Trimps | 生产、推图、Portal、Challenge | Portal perks、挑战奖励 | 受限规则带来重玩性 | challenge 应该是长期内容 |
+| 7 | Universal Paperclips | 生产、市场、扩张、宇宙化 | 阶段切换就是奖励 | 玩法持续变形 | 公司要从 office 进化为 ecosystem |
+| 8 | A Dark Room | 极简积累、村庄、探索、战斗 | 系统逐步揭示 | reveal 本身就是 hook | 开局可简，但必须快速展开 |
+| 9 | Candy Box! | 简单积累后逐步开菜单和世界 | 新界面、新地图 | 神秘感驱动 | 早期要更有“惊喜揭示” |
+| 10 | Candy Box 2 | 资源、任务、装备、地图 | 地图 / 装备解锁 | 探索式推进 | 市场扩张可以做成地图 |
+| 11 | Progress Quest | 全自动推进、观看成长 | 自动职业成长 | 看系统自己跑也爽 | 办公室要更“会演” |
+| 12 | AdVenture Capitalist | 投资、manager 自动化、angel reset | managers、angel investors | 自动化改变操作方式 | lead / manager 应真能替玩家做事 |
+| 13 | AdVenture Communist | 任务驱动的资源链 | missions、researchers、events | 持续任务压着你前进 | 任务系统要更强 |
+| 14 | Egg, Inc. | 农场、prestige、contracts、artifacts | contracts、Soul Eggs、Epic Research | 合同强回流 | startup 题材极适合合同系统 |
+| 15 | Cell to Singularity | 主模拟 + 子模拟 | 新分支模拟反哺主线 | 子系统反哺 | 可做海外市场 / 新产品线 |
+| 16 | Idle Champions | 阵容、推进、variant、patron | formation、variant、patron | 组合和限制玩法 | 团队配置要比人数更重要 |
+| 17 | Idle Slayer | 跑酷 + idle + Ascension | minions、divinities、UA | 多层 reset + 定时派遣 | 高管派遣 / 部门任务很适合 |
+| 18 | NGU Idle | rebirth、boss、wishes、adventure | 高频 rebirth、新系统密集展开 | 总有新面板开 | 中后期新东西密度要更高 |
+| 19 | Mr.Mine | 挖深度、装备、relic、super miners | 深度 milestone、稀有掉落 | 每一段深度都有新目标 | 每个阶段要有明确深度表 |
+| 20 | Leaf Blower Revolution | 多货币、多宠物、多 prestige | 持续开货币和系统 | 内容 churn 非常高 | 你的货币层偏薄 |
+| 21 | Swarm Simulator | 繁殖、变异、ascend | mutagen、mutation tree | meta 和 build 紧耦合 | culture / process 可做成基因树 |
+| 22 | Spaceplan | 点击、自动化、叙事展开 | 剧情推进 | 叙事增强推进感 | startup 题材应更有故事线 |
+| 23 | Almost a Hero | 队伍推进、失败回流、meta 升级 | 失败也给 Mythstones | 卡关不等于白玩 | 失败也要产出 meta |
+| 24 | Zombidle | 主动法术 + idle 增长 | 法术和 burst 是节奏打断器 | 主动技能打断单调 | 需要更多主动 burst 技能 |
+| 25 | Crush Crush | 多目标并行推进 | 多角色目标奖励 | 并行任务强黏性 | 客户 / 投资人 / 团队关系并行化 |
+| 26 | Bit City | 城市扩张可视化 | 新建筑、新区 | 视觉成长就是奖励 | 办公室成长要更明显 |
+| 27 | Make It Rain | 强即时点击反馈 | 快速买升级 | 每秒都在涨 | 点击反馈要更爽 |
+| 28 | LEGO Tower | 楼层增长、居民和收藏 | 新楼层就是 milestone | 目标清晰可视 | 办公室扩层非常适配 |
+| 29 | Rusty's Retirement | 低打扰挂机与陪伴感 | 农田扩展和自动化 | 轻陪伴型回流 | 办公室可做后台陪伴感 |
+| 30 | PokéClicker | 地区推进、图鉴收集、重刷 | 地区和图鉴目标 | 收集驱动长期回流 | 你缺收集型长期目标 |
+| 31 | Shark Game | 多资源文明演化 | 新资源改变最优策略 | 结构变化大于数值增长 | 资源结构要更立体 |
+| 32 | CivClicker | 人口、资源链、文明发展 | 阶段式发展 | 成长层次明确 | startup 到组织体制升级可借鉴 |
+| 33 | Space Company | 多资源链、能源、太空扩张 | 新资源、新生产链 | 每开一种资源都很爽 | 多产品线 / 多区域经营 |
+| 34 | Crank | 小系统持续展开 | 每个解锁都换重心 | reveal > UI 复杂度 | 早期展开速度要更快 |
+| 35 | Clickpocalypse II | 自动队伍跑图 | loot、职业成长 | 观察系统自己跑有乐趣 | 团队执行项目要可视化 |
+| 36 | Forge & Fortune | 队伍、战斗、锻造、idle | 装备线和角色线并行 | 双循环互推 | 工具栈 / 基建可成为副循环 |
+| 37 | Godville | 全自动 + 文本日志 | 事件日志本身是内容 | 文案产生黏性 | 创业日报志可做成亮点 |
+| 38 | GrindCraft | 资源、配方、配方树 | 新配方解锁 | “下一配方”持续勾人 | 流程 / SOP 可做成 tech tree |
+| 39 | Wizard and Minion Idle | 法术树、minion、规划 build | 新法术改变节奏 | build 规划驱动 | 产品 / 增长 / 融资做成 skill tree |
+| 40 | Anti-Idle: The Game | 模式非常多、内容极密 | 大量 side systems | 总有事可做 | 但要避免散乱，要回流主循环 |
+| 41 | Sandcastle Builder | 超长期 meta、深层规则 | 多层资源和目标 | 长线发现感 | 后期系统深度可借鉴 |
+| 42 | Cow Clicker | 极简、荒诞、社交 satirical | 签到式推进 | 社交和反讽记忆点 | 主题包装也能形成 hook |
+| 43 | Idle Research | 研究树、重开、复杂连锁 | 新研究 = 新节奏 | 规划型玩家黏性高 | 你的 strategy layer 可以更深 |
+| 44 | Idle Loops | 时间循环、自动脚本规划 | loop 优化即奖励 | 重复中找最优 | COO / automation scripts 很适合 |
+| 45 | Orb of Creation | spellcraft、资源转化、发现 | 新法术开新生产方式 | 发现感强 | 新产品策略要改变规则 |
+| 46 | Increlution | 时间分配、轮回、技能成长 | 下一轮保留经验 | 再来一轮更聪明 | prestige 应更像创业经验积累 |
+| 47 | Melvor Idle | RuneScape 式技能并行挂机 | 新技能、装备、任务 | 长线养成与收集 | 并行部门线很适合 startup |
+| 48 | Synergism | 多层 prestige、synergy build | 每一层都是新优化题 | 系统深度带来执着 | 后期 meta 可以更数学化 |
+| 49 | The Gnorp Apologue | 视觉演出 + build 组合 | 每个新单位都改打法 | 观赏性和系统性兼得 | 办公室动画和 build 应同时加强 |
+| 50 | Evolve Idle | 文明演化、多阶段路线 | 物种 / 路线差异、挑战 | 重玩价值高 | 不同公司 archetype 应明显区分 |
+
+## 7. 从 50 款游戏里抽出来的高频规律
+
+### 7.1 最容易上瘾的不是“大数字”，而是 4 件事同时成立
+
+1. `短反馈`
+- 10 到 30 秒就能做一个决定
+
+2. `中反馈`
+- 2 到 5 分钟能看到新按钮、新区域、新任务或新构筑件
+
+3. `长反馈`
+- 15 到 60 分钟进入一次“现在 prestige 还是再撑一下”的抉择
+
+4. `离线反馈`
+- 退出后还有合同、任务、离线结算、定时派遣、回来领奖
+
+### 7.2 最常见的 hook 结构
+
+- `确定性目标`
+  - 再 20 秒我就能买这个
+  - 再一局我就能 prestige
+- `不确定性目标`
+  - 下一次会不会刷到稀有事件 / 稀有掉落
+- `永久成长`
+  - 这次重开不白打
+- `系统揭示`
+  - 下一层到底会开什么新机制
+
+### 7.3 让玩家停不下来的常见节奏
+
+- `30 秒内`
+  - 让玩家看到数字上涨和第一笔购买
+- `3 分钟内`
+  - 开第一个“能改变玩法”的系统
+- `10 分钟内`
+  - 让玩家知道这个游戏不只是点点点
+- `20 到 40 分钟内`
+  - 给第一次 prestige 或一次大型 milestone
+- `离线回来时`
+  - 不只是领钱，而是“公司发生了事”
+
+## 8. 你现在这个游戏为什么会让人觉得单调
+
+### 8.1 系统多，但玩家真实动作太单一
+
+玩家大部分时候还是在:
+
+1. 点击
+2. 雇人
+3. 等资源
+4. 升产品或融资
+5. 重复
 
-### 7.1 缺“改变玩法的 milestone”
+这说明真正的 `决策密度` 还不够高。
 
-你当前很多 milestone 只会让数字更大，没有让玩家换一种思考方式。
+### 8.2 里程碑多，但很多只是数值更大
 
-应该补:
+现在最缺的是“到这一步后，玩家开始换一种玩法”的感觉。
 
-- milestone 解锁 `新资源线`
-- milestone 解锁 `新事件池`
-- milestone 解锁 `新自动化权限`
-- milestone 解锁 `新 challenge`
-- milestone 解锁 `新房间 / 新视觉层`
+例如优秀 idle 常见的 milestone 结果是:
 
-### 7.2 缺“中期收集系统”
+- 新事件池
+- 新资源线
+- 新自动化权限
+- 新限制挑战
+- 新地图 / 新房间
+- 新 reset 层
 
-目前缺一个 `可长期收集、可 build、可掉落、可组合` 的系统。
+而不是单纯:
 
-最适合你题材的是:
+- `+cash`
+- `+credits`
+- `+speed`
+- `+multiplier`
 
-- `Advisor Cards`
-- `Investor Contacts`
-- `Tool Stack / SaaS Stack`
-- `Team Culture Traits`
-- `Company Memos / Playbooks`
+### 8.3 题材优势还没被充分用起来
 
-这些都能做成:
+你的题材不是 generic fantasy，不是 generic factory，而是 `创业公司成长`。
 
-- 稀有度
-- 套装效果
-- challenge 专属掉落
-- event 专属掉落
+这意味着天然就适合做:
 
-### 7.3 缺“合同 / 订单 / 派遣”类回流系统
+- 招聘速度 vs 文化质量
+- 产品速度 vs 稳定性
+- 病毒增长 vs 用户留存
+- 融资效率 vs 控制权压力
+- 大客户合同 vs 团队负荷
+- 海外扩张 vs 本地口碑
+- IPO / Acquired 后的新规则
 
-这是你题材最天然、但现在还没做强的一块。
+现在这些张力还没有真正变成玩法。
 
-建议加:
+## 9. 重新调研后的改进建议
 
-- `Client Contracts`
-- `Enterprise Deals`
-- `Hiring Campaigns`
-- `PR Windows`
-- `Market Expeditions`
+### 9.1 第一优先级: 强化 milestone，让它开新玩法
 
-机制上可参考 `Egg, Inc.` 的 contracts、`Idle Slayer` 的 minions、`Mr.Mine` 的深度里程碑回收。
+建议把你的 milestone 设计成以下类型:
 
-### 7.4 缺“真正的 build 差异”
+- `Team milestone`
+  - 开部门自动化
+  - 开 cross-functional project
+  - 开团队危机 / 文化事件
+- `Product milestone`
+  - 开用户留存 / 差评 / feedback loop
+  - 开 feature bets
+  - 开 multi-product
+- `Funding milestone`
+  - 开董事会压力
+  - 开 KPI 要求
+  - 开 public market volatility
+  - 开 parent-company directive
 
-你现在已经有:
+### 9.2 第二优先级: 把合同系统做成中期主循环
 
-- `CompanyFocus`
-- `ProductStrategy`
-- `CapitalPolicy`
-- `FounderSpecialization`
+你已经有 `ContractType`，这是最值得立刻做强的一层。
 
-但是它们还不够像“流派”，更像 `不同倍率`。
-
-建议让不同路线真的改变玩法:
-
-- `Product-led`
-  - 更强 ship reward
-  - 更快解锁 feature labs
-  - 合同更少，但高口碑高留存
-- `Growth-led`
-  - 更强 traction event
-  - 更快市场扩张
-  - 更容易遇到 reputation crisis
-- `Finance-led`
-  - 融资门槛更低
-  - 现金更宽裕
-  - 研发速度更慢
-- `Operations-led`
-  - 自动化更早
-  - 离线更强
-  - 爆发更少，但稳定性高
-
-### 7.5 缺“风险和代价”
-
-现在多数选择的 downside 不够明显，所以选择不够有张力。
-
-优秀 idle 的 build choice 常常都伴随 tradeoff:
-
-- 增长快，但口碑容易掉
-- 融资猛，但 burn rate 变高
-- 招人快，但 culture 变差
-- 多线扩张，但产品质量吃亏
-
-没有代价，选择就不刺激。
-
-### 7.6 缺“事件后果”
-
-你已经有事件系统，但事件更像短期奖励按钮。
-
-应改为:
-
-- 事件有 `即时收益`
-- 事件有 `中期状态`
-- 事件能改动 `后续事件池`
-- 事件能影响 `品牌、团队士气、客户信任`
-
-例如:
-
-- `Viral Moment`
-  - 选冲营收: 立刻暴涨，但未来 2 分钟客服压力增加，reputation 更容易波动
-  - 选打磨 onboarding: 当下收益较低，但后续合同完成率更高
-
-### 7.7 缺“第二重 Prestige”
-
-现在 prestige 存在，但还不够深。
-
-建议分成两层:
-
-1. `Founder Prestige`
-- 保留你现在的 Prestige Points / Legacy Tokens / Founder Reputation
-
-2. `Portfolio Layer`
-- 每完成一家公司，进入 portfolio
-- portfolio 解锁全局基金、品牌、校友网络、顾问池、特殊剧本
-- 这层不是每局都触发，而是更慢的账号级成长
-
-这样能把“serial founder fantasy”真正做出来。
-
-### 7.8 缺“更强的视觉兑现”
-
-Idle game 里，视觉变化本身就是奖励。
-
-你当前很适合加:
-
-- 工位数量 visibly 增长
-- 会议室解锁
-- CEO room / board room
-- 海外办公室支线
-- 上市敲钟 / acquisition 动画
-- 团队角色在办公室里行动
-- dashboard 墙、服务器机架、活动海报、客户 logo 墙
-
-## 8. 怎么 Improve 你现在这个游戏
-
-下面是我建议的分阶段方案，按“投入较小但收益高”优先。
-
-### 8.1 第一阶段: 先把现有骨架变好玩
-
-这是最优先的一层，不需要完全推翻现有代码结构。
-
-#### A. 把 milestone 奖励从“倍率”升级成“新系统”
-
-建议直接重做以下 milestone:
-
-- `3 hires`
-  - 不是只开自动化
-  - 再加 `Sprint Tasks` 小任务槽
-- `6 hires`
-  - 解锁 `Team Leads`
-  - 可给某部门指派 lead，改变部门成长曲线
-- `10 hires`
-  - 解锁 `Cross-functional Project`
-  - 需要固定组合员工，完成后给永久公司 trait
-- `20 hires`
-  - 解锁 `Culture / Process Incidents`
-  - 玩家必须管理速度与稳定性的权衡
-
-#### B. 强化 product milestone
-
-当前产品阶段很好，但每次奖励偏轻。
-
-建议:
-
-- `Prototype`
-  - 解锁事件池和第一个用户反馈系统
-- `MVP`
-  - 解锁用户分群、留存、投诉
-- `Launch`
-  - 除 traction 外，新增 `Customer Trust`
-- `Growth`
-  - 解锁 `Feature Bets`
-- `Scale`
-  - 解锁 `Platform Strategy`
-- `Unicorn Platform`
-  - 解锁 `Ecosystem / Acquisition / Multi-product`
-
-#### C. 强化 funding milestone
-
-建议让融资不是“拿钱”，而是“拿约束”。
-
-- `Pre-seed`
-  - 开 investor event pool
-- `Seed`
-  - 开 board requests
-- `Series A`
-  - 开 KPI pressure
-- `Series B`
-  - 开海外扩张 / 大客户系统
-- `IPO`
-  - 开 public-market volatility
-- `Acquired`
-  - 开 parent-company directives / earn-out system
-
-### 8.2 第二阶段: 加一条真正能 hook 的中期循环
-
-这是最值得投入的一层。
-
-我建议你优先做 `Contracts + Relics` 双系统。
-
-#### A. Contracts 系统
-
-合同可以分为:
-
-- `Startup Pilot`
-- `SMB Deal`
-- `Enterprise Rollout`
-- `Government Tender`
-- `Celebrity / Viral Partnership`
-
-每个合同有:
+建议每个合同具备:
 
 - 时长
-- 所需团队配置
+- 所需部门配置
+- 成功率
 - 风险
-- 奖励包
 - 失败代价
+- 稀有掉落
+- 对后续事件池的影响
 
-奖励不只给 cash:
+合同奖励不要只给 cash，应该混合给:
 
-- 稀有 advisor
-- SaaS stack card
-- 永久 reputation cap
-- event 权重变化
+- 稀有 `Advisor`
+- 稀有 `Playbook`
+- 永久 `Reputation Cap`
+- 新客户类型
 - 特殊办公室装饰
+- 新挑战 token
 
-#### B. Relics / Cards 系统
+### 9.3 第三优先级: 让事件有后果
 
-可命名成更贴题材的:
+你现在的事件方向是对的，但需要从 `瞬时收益按钮` 升级为 `中期状态修改器`。
 
-- `Playbooks`
-- `Founder Lore`
-- `Network Contacts`
-- `Infra Stack`
+建议事件同时影响:
 
-特征:
+- 当前收益
+- 未来 1 到 3 分钟的状态
+- 客户信任
+- 团队士气
+- 后续事件权重
+- 合同成功率
 
-- 稀有度
-- 套装
-- 部门偏向
-- run-only 与 account-wide 混合
+例子:
 
-这样玩家会开始“刷配置”，而不是只刷 cash。
+- `Viral Moment`
+  - 冲增长:
+    - 立刻涨 traction
+    - 但未来 2 分钟 churn 和 support pressure 上升
+  - 稳接住:
+    - 立刻收益较少
+    - 但后续合同成功率、用户信任更高
 
-### 8.3 第三阶段: 把 prestige 改成真正的 meta
+### 9.4 第四优先级: 把 Playbooks / Advisors 变成 build 系统
+
+你现在已经有 `PlaybookId` 和 `AdvisorId`，这非常好，但它们还更像 multiplier。
 
 建议改成:
 
-#### Layer 1: `Exit and Restart`
+- `run-defining modifiers`
+- 组合生效
+- 套装效果
+- 互斥选择
+- challenge 专属掉落
 
-- 出售公司 / IPO / Acquired
-- 获得:
-  - `Founder Reputation`
-  - `Legacy Tokens`
-  - `Investor Trust`
+可发展的方向:
 
-#### Layer 2: `Portfolio`
+- `Growth Script`
+  - 让 viral / partnership 更强
+  - 但品牌波动更大
+- `Enterprise Deck`
+  - 让大客户合同更强
+  - 但产品节奏变慢
+- `People Ops Manual`
+  - 让招聘、士气、离线更稳
+  - 但爆发收益较弱
 
-- portfolio 解锁:
-  - 新起手 buff
-  - 新顾问池
-  - 新公司剧本
-  - 新 challenge 赛道
-  - 新事件池
+### 9.5 第五优先级: 让 prestige 成为“身份变化”
 
-#### Layer 3: `Venture Fund`
+优秀 idle 的 prestige 不只是效率更高，而是角色身份变化。
 
-更后期才开。
+你最适合的 prestige 包装应该是:
 
-- 玩家不再只是做一家公司
-- 而是管理基金网络 / 校友生态 / 顾问影响力
+1. `Exit`
+- IPO / Acquired / Shut Down
 
-这个层级会把题材从“创业公司 clicker”变成“创业帝国 incremental”。
+2. `Founder Legacy`
+- 保留 founder reputation、legacy tokens、portfolio points
 
-## 9. 怎么让用户更上瘾、更 Hook
+3. `New Company`
+- 下一局不是“同一家公司重来”
+- 而是新的 founder origin、新路线、新资源偏好、新挑战
 
-这里说的是 retention 设计，不是单纯让数值膨胀。
+这样才更像 serial founder fantasy。
 
-### 9.1 短期 Hook
+## 10. 怎么让用户更容易上瘾
 
-每 20-40 秒至少给玩家一个清晰决定:
+这里不讲付费设计，只讲 retention / hook。
 
-- 买谁
-- 升哪个系统
-- 开哪个 sprint
+### 10.1 短期 hook
+
+每 20 到 40 秒至少给玩家一个决定:
+
+- 雇谁
+- 升哪个部门
 - 接哪个合同
 - 赌哪个事件分支
+- 给哪条路线投入 token
 
-### 9.2 中期 Hook
+### 10.2 中期 hook
 
-每 3-5 分钟要出现一个“可感知的新东西”:
+每 3 到 5 分钟出现一个“感知明确的新东西”:
 
 - 新房间
-- 新事件
-- 新卡牌
 - 新客户类型
-- 新挑战
+- 新卡
+- 新事件
+- 新 challenge
 
-### 9.3 长期 Hook
+### 10.3 长期 hook
 
-每 20-45 分钟让玩家进入“现在 prestige 还是再撑一下”的纠结。
+每 20 到 45 分钟制造一次：
 
-这是 idle game 非常经典的 hook 点。
+`现在 prestige 还是再撑一下`
 
-### 9.4 用“差一点”设计目标
+这是 idle game 最经典、最有效的纠结点之一。
 
-让玩家永远觉得:
+### 10.4 离线回流 hook
 
-- 再攒 1 个合同点数就够
-- 再过一个事件就能开新顾问
-- 再升一个房间就能冲 challenge
+回来时不要只弹“你赚了多少”。
 
-这类 “almost there” 感受比纯大数值更有黏性。
+应该弹:
 
-### 9.5 把随机奖励和可控目标混在一起
+- 哪个合同完成了
+- 哪个部门出了问题
+- 哪个客户升级了
+- 哪个顾问给了新机会
+- 哪条新闻改变了市场环境
 
-最健康的 idle hook 不是纯赌博，也不是纯算术。
+玩家看到的是“公司活着”，不是“数字涨了”。
 
-理想结构是:
+## 11. 你现在还缺什么
 
-- 可控目标:
-  - milestone
-  - prestige
-  - challenge clear
-- 随机目标:
-  - 稀有事件
-  - 稀有合同
-  - 稀有顾问 / relic
+这是基于当前代码骨架，我认为最缺的 8 个要素。
 
-### 9.6 让玩家离开也有牵挂
+1. `有后果的选择`
+- 现在很多选择收益有了，但代价不够明显
 
-可以加:
+2. `更强的中期主循环`
+- contract 还没成为必玩核心
 
-- 1 小时完成的 enterprise contract
-- 3 小时完成的 hiring campaign
-- 8 小时完成的 overseas expansion
-- 离线期间发生的新闻简报
+3. `更深的收集系统`
+- playbooks / advisors 可以再往卡组化发展
 
-玩家回来不是只看一串 cash，而是看“公司发生了什么”。
+4. `更强的主题化风险`
+- 董事会、裁员、技术债、品牌危机、增长泡沫
 
-## 10. 对你这个项目的整体 Recommendation
+5. `更明确的 build identity`
+- Product-led、Growth-led、Finance-led、Ops-led 还不够分化
 
-如果让我给这个项目做产品方向建议，我会这样定:
+6. `更好的视觉兑现`
+- 办公室空间、楼层、Logo 墙、会议室、董事会、海外分部
 
-### 10.1 不要继续只加普通升级项
+7. `更像故事的离线结算`
+- 不是单一收益总结，而是公司日报
 
-继续加更多 `+10%`、`+15%`、`+cash/s`，边际收益会越来越低。
+8. `更深的 prestige 后身份变化`
+- 下一轮应该更不同
 
-你更应该加:
+## 12. 推荐的版本路线
 
-- 新循环
-- 新资源
-- 新后果
-- 新可视化
-- 新 build 分化
+### v1.1
 
-### 10.2 把主题做深，而不是只做“创业皮”
+- 重做 team / product / funding milestone 奖励
+- 把 contracts 做成中期主循环
+- 给 events 增加持续后果
 
-最值钱的不是 generic idle 模板，而是你这个 startup 题材本身。
+### v1.2
 
-题材上最值得做深的是:
+- 扩展 playbooks / advisors 为更完整的 build / collection 系统
+- 增加 challenge 专属奖励
+- 增加办公室视觉成长
 
-- 融资压力
-- 招聘速度 vs 文化质量
-- 产品速度 vs 稳定性
-- 病毒传播 vs 留存质量
-- 海外扩张 vs 本地口碑
-- 大客户合同 vs 团队负荷
-- 董事会要求 vs 创始人愿景
+### v1.3
 
-这些都比单纯加一个新 tab 更有辨识度。
+- 做第二层 prestige
+- 做 portfolio meta
+- 做多公司 / 多市场 / 多产品线
 
-### 10.3 先做“一条新中期循环”，不要同时摊太大
+## 13. 最终 recommendation
 
-优先级我建议是:
+如果只给一套最实用、最不容易做偏的建议，我推荐你这样改:
 
-1. `Contracts`
-2. `Card / Relic / Playbook collection`
-3. `Stronger prestige layers`
-4. `Event consequences`
-5. `Office visual growth`
+1. 先把 `Contracts` 做强
+- 这是你题材最自然、也是最容易产生回流的系统
 
-只要这五项做好，产品吸引力会明显上一个台阶。
+2. 再把 `Events` 做成有后果的系统
+- 让玩家对选择有情绪和记忆点
 
-### 10.4 推荐的版本路线
+3. 然后把 `Playbooks / Advisors` 做成 build
+- 让不同 run 的玩法不同
 
-#### v1.1
+4. 最后把 `Prestige` 做成 founder journey
+- 让玩家玩的不只是同一家公司，而是一连串创业人生
 
-- 重做 milestone 奖励
-- 加 contracts
-- 加更强事件分支
+如果只允许你优先做一个组合包，那就做:
 
-#### v1.2
+> `Contracts + Consequence-based Events + Build-style Playbooks`
 
-- 加 advisor / playbook 收藏系统
-- 加更强 challenge 奖励
-- 加 office 视觉成长
+这三件事最容易把你现在的游戏从“可以跑”变成“会让人回来继续跑”。
 
-#### v1.3
+## 14. Sources
 
-- 上第二层 prestige
-- 上 portfolio meta
-- 上多公司 / 多市场层
+以下来源用于这次重新调研。
 
-## 11. 一个可以直接执行的补缺清单
+### 类型与机制综述
 
-下面这份最适合直接转成开发 backlog。
+- [GDC Vault: Idle Games: The Mechanics and Monetization of Self-Playing Games](https://www.gdcvault.com/play/1022065/Idle-Games-The-Mechanics-and)
+- [Kongregate: The Math of Idle Games, Part I](https://blog.kongregate.com/the-math-of-idle-games-part-i/)
+- [Kongregate: The Math of Idle Games, Part II](https://blog.kongregate.com/the-math-of-idle-games-part-ii/)
+- [Wikipedia: Incremental game](https://en.wikipedia.org/wiki/Incremental_game)
 
-### 必做
+### 社区样本池
 
-- 让 milestone 奖励更多地解锁新玩法，而不是只加倍率
-- 给 `product` 和 `funding` 每个阶段增加一个“系统型奖励”
-- 给 `events` 增加长期后果
-- 给 `prestige` 增加第二层 meta
-- 增加至少一条 `contracts / dispatch / mission` 中期循环
+- [r/incremental_games Wiki: Ultimate List of Incremental Games](https://www.reddit.com/r/incremental_games/wiki/list_of_incremental_games/)
+- [IncrementalDB](https://www.incrementaldb.com/)
+- [Steam: Idler Tag](https://store.steampowered.com/tags/en/Idler/)
 
-### 强烈建议
+### 学术 / 研究参考
 
-- 增加 `collection / relic / playbook / advisor card` 系统
-- 增加更明显的办公室视觉升级
-- 增加更多 downside-based choices
-- 增加离线返回时的“新闻简报 / 结算叙事”
+- [Playing to Wait: A Taxonomy of Idle Games](https://dl.acm.org/doi/10.1145/3173574.3174195)
+- [The Pleasure of Playing Less: A Study of Incremental Games Through the Lens of Kittens](https://kilthub.cmu.edu/articles/book/The_Pleasure_of_Playing_Less_A_Study_of_Incremental_Games_Through_the_Lens_of_Kittens/6686957)
 
-### 可选增强
-
-- 日常 / 周常 challenge
-- 限时 event season
-- founder origin / company archetype 开局
-- 社交炫耀点: valuation peak, fastest IPO, clean bootstrapped run
-
-## 12. 最终判断
-
-你现在这款游戏，已经不是零基础了。
-
-它真正缺的不是“更多按钮”，而是:
-
-- 更强的 milestone 奖励设计
-- 更深的中期循环
-- 更明显的构筑差异
-- 更有后果的事件系统
-- 更像“serial founder fantasy”的 prestige
-
-如果只给一个最重要建议:
-
-> 先做 `Contracts + Collection + Consequence-based Events`，这是最容易让你这款 startup idle 从“能玩”变成“想继续玩”的三件套。
-
-## 13. Sources
-
-以下来源主要用于确认行业共性、代表作品机制、以及样本覆盖范围。
-
-### 设计与机制分析
-
-- [GDC Vault: Idle Games - The Mechanics and Monetization of Self-Playing Games](https://www.gdcvault.com/play/1022065/Idle-Games-The-Mechanics-and)
-- [Kongregate Developers Blog: The Math of Idle Games, Part I](https://blog.kongregate.com/the-math-of-idle-games-part-i/)
-- [Kongregate Developers Blog: The Math of Idle Games, Part II](https://blog.kongregate.com/the-math-of-idle-games-part-ii/)
-
-### 代表作品机制来源
+### 代表作品官方 / wiki / store 页面
 
 - [Cookie Clicker Wiki](https://cookieclicker.wiki.gg/wiki/Cookie_Clicker_Wiki)
 - [Clicker Heroes Wiki](https://clickerheroes.fandom.com/wiki/Clicker_Heroes_Wiki)
 - [Realm Grinder Wiki](https://realm-grinder.fandom.com/wiki/Realm_Grinder_Wiki)
-- [Antimatter Dimensions Guide / Wiki](https://antimatter-dimensions.fandom.com/wiki/Guide)
+- [Antimatter Dimensions Guide](https://antimatter-dimensions.fandom.com/wiki/Guide)
 - [Kittens Game Wiki](https://kittensgame.fandom.com/wiki/Kittens_Game_Wiki)
-- [Trimps Wiki](https://trimps.fandom.com/wiki/Trimps_Wiki)
+- [Trimps](https://trimps.github.io/)
 - [Universal Paperclips](https://www.decisionproblem.com/paperclips/index2.html)
 - [A Dark Room](https://adarkroom.doublespeakgames.com/)
 - [AdVenture Capitalist Wiki](https://adventure-capitalist.fandom.com/wiki/AdVenture_Capitalist_Wiki)
+- [AdVenture Communist Wiki](https://adventurecommunist.fandom.com/wiki/AdVenture_Communist_Wiki)
 - [Egg, Inc. Wiki](https://egg-inc.fandom.com/wiki/Egg,_Inc._Wiki)
 - [Cell to Singularity](https://www.celltosingularity.com/)
-- [Idle Champions official site](https://www.codenameentertainment.com/?page=idle_champions)
+- [Idle Champions](https://store.steampowered.com/app/627690/Idle_Champions_of_the_Forgotten_Realms/)
 - [Idle Slayer Wiki](https://idleslayer.fandom.com/wiki/Idle_Slayer_Wiki)
-- [NGU IDLE on Steam](https://store.steampowered.com/app/1147690/NGU_IDLE/)
-- [Mr.Mine on Steam](https://store.steampowered.com/app/1397920/MrMine/)
-- [Leaf Blower Revolution on Steam](https://store.steampowered.com/app/1468260/Leaf_Blower_Revolution__Idle_Game/)
-- [Rusty's Retirement on Steam](https://store.steampowered.com/app/2666510/Rustys_Retirement/)
-- [Pokeclicker Wiki](https://wiki.pokeclicker.com/)
-- [Crush Crush on Steam](https://store.steampowered.com/app/459820/Crush_Crush/)
-
-### 样本拓展与广度校验
-
-- [Wikipedia: Incremental game](https://en.wikipedia.org/wiki/Incremental_game)
-- [Steam Idle Tag](https://store.steampowered.com/tags/en/Idler/)
-- [Steam Clicker Tag](https://store.steampowered.com/tags/en/Clicker/)
-
+- [NGU IDLE](https://store.steampowered.com/app/1147690/NGU_IDLE/)
+- [Mr.Mine](https://store.steampowered.com/app/1397920/MrMine/)
+- [Leaf Blower Revolution](https://store.steampowered.com/app/1468260/Leaf_Blower_Revolution__Idle_Game/)
+- [Rusty's Retirement](https://store.steampowered.com/app/2666510/Rustys_Retirement/)
+- [PokéClicker Wiki](https://wiki.pokeclicker.com/)
