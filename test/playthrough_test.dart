@@ -183,6 +183,10 @@ void main() {
 
     controller.startContract(ContractType.enterpriseRollout);
     expect(controller.activeContract, ContractType.enterpriseRollout);
+    expect(
+      controller.contractSuccessChance(ContractType.enterpriseRollout),
+      greaterThan(0.8),
+    );
 
     controller.tick(ContractType.enterpriseRollout.durationSeconds.toDouble());
     expect(controller.readyContract, ContractType.enterpriseRollout);
@@ -206,6 +210,36 @@ void main() {
     controller.buyPortfolioUpgrade(PortfolioTrack.brandNetwork);
     expect(controller.portfolioPoints, lessThan(pointsBefore));
     expect(controller.brandNetworkLevel, 1);
+  });
+
+  test('contract failures create visible downside and event choices alter delivery', () {
+    final controller = GameController();
+
+    controller.productStageIndex = 4;
+    controller.fundingStageIndex = 2;
+    controller.marketExpansionLevel = 1;
+    controller.marketInsight = 500;
+    controller.customerTrust = 92;
+    controller.teamMorale = 90;
+    controller.activeEvent = StartupEventType.viralMoment;
+
+    controller.resolveEvent(controller.primaryEventChoiceLabel);
+    expect(controller.supportBacklogSeconds, greaterThan(0));
+
+    controller.fundingStageIndex = 1;
+    controller.customerTrust = 52;
+    controller.teamMorale = 48;
+    final failureChance = controller.contractSuccessChance(
+      ContractType.channelPartnership,
+    );
+    expect(failureChance, lessThan(0.68));
+
+    controller.startContract(ContractType.channelPartnership);
+    controller.tick(ContractType.channelPartnership.durationSeconds.toDouble());
+
+    expect(controller.readyContract, isNull);
+    expect(controller.lastContractSummary, contains('slipped'));
+    expect(controller.crisisLevel, greaterThan(0));
   });
 
   test('feature bets and board demands create mid-game systemic rewards', () {

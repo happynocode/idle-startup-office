@@ -675,7 +675,7 @@ enum CultureIncidentType {
 
 class GameController extends ChangeNotifier {
   static const _saveKey = 'startup_office_save_v1';
-  static const schemaVersion = 5;
+  static const schemaVersion = 6;
   static const resetForIntegration = bool.fromEnvironment(
     'E2E_RESET_ON_LAUNCH',
   );
@@ -762,6 +762,9 @@ class GameController extends ChangeNotifier {
   int lastOfflineSeconds = 0;
   List<String> offlineBriefLines = <String>[];
   double eventCooldownSeconds = 35;
+  double supportBacklogSeconds = 0;
+  double deliveryConfidenceSeconds = 0;
+  double recruitingPipelineSeconds = 0;
   double viralBoostSeconds = 0;
   double investorBuzzSeconds = 0;
   double recruitingRushSeconds = 0;
@@ -806,8 +809,16 @@ class GameController extends ChangeNotifier {
   int get marketers =>
       roleCount(Role.growthMarketer) + roleCount(Role.communityManager);
   int get sales => roleCount(Role.salesRep) + roleCount(Role.accountExecutive);
-  double get trustFloor => 35 + brandNetworkLevel * 6;
-  double get moraleFloor => 35 + talentBenchLevel * 6;
+  double get trustFloor =>
+      35 +
+      brandNetworkLevel * 6 +
+      (unlockedPlaybooks.contains(PlaybookId.peopleOpsManual) ? 6 : 0) -
+      (unlockedPlaybooks.contains(PlaybookId.growthScript) ? 4 : 0);
+  double get moraleFloor =>
+      35 +
+      talentBenchLevel * 6 +
+      (unlockedPlaybooks.contains(PlaybookId.peopleOpsManual) ? 8 : 0) -
+      (unlockedPlaybooks.contains(PlaybookId.growthScript) ? 2 : 0);
   double get trustMultiplier =>
       (0.75 + customerTrust / 120 + brandNetworkLevel * 0.02).clamp(0.8, 1.9);
   double get moraleMultiplier =>
@@ -1151,9 +1162,19 @@ class GameController extends ChangeNotifier {
       marketExpansionLevel * 0.12 +
       (unlockedPlaybooks.contains(PlaybookId.enterpriseDeck) ? 0.18 : 0.0);
   double get playbookEventMultiplier =>
-      unlockedPlaybooks.contains(PlaybookId.growthScript) ? 1.12 : 1.0;
+      (unlockedPlaybooks.contains(PlaybookId.growthScript) ? 1.12 : 1.0) *
+      (unlockedPlaybooks.contains(PlaybookId.peopleOpsManual) ? 0.96 : 1.0) *
+      (unlockedPlaybooks.contains(PlaybookId.enterpriseDeck) ? 0.98 : 1.0);
   double get moraleHireDiscountMultiplier =>
       unlockedPlaybooks.contains(PlaybookId.peopleOpsManual) ? 0.94 : 1.0;
+  double get playbookProductMultiplier =>
+      unlockedPlaybooks.contains(PlaybookId.enterpriseDeck) ? 0.92 : 1.0;
+  double get playbookTractionMultiplier =>
+      unlockedPlaybooks.contains(PlaybookId.growthScript) ? 1.12 : 1.0;
+  double get eventContractSuccessModifier =>
+      (deliveryConfidenceSeconds > 0 ? 0.08 : 0.0) +
+      (recruitingPipelineSeconds > 0 ? 0.05 : 0.0) -
+      (supportBacklogSeconds > 0 ? 0.12 : 0.0);
   double get systemCashMultiplier => 1 + _systemBonus((s) => s.cashBoost);
   double get systemProductMultiplier => 1 + _systemBonus((s) => s.productBoost);
   double get systemReputationMultiplier =>
@@ -1295,6 +1316,7 @@ class GameController extends ChangeNotifier {
       leadProductMultiplier *
       boardQualityMultiplier *
       productBurstMultiplier *
+      playbookProductMultiplier *
       systemProductMultiplier;
   double get reputationPerSecond =>
       Role.values.fold<double>(
@@ -1348,7 +1370,8 @@ class GameController extends ChangeNotifier {
         featureBetTractionMultiplier *
         leadTractionMultiplier *
         boardGrowthMultiplier *
-        reputationBurstMultiplier;
+        reputationBurstMultiplier *
+        playbookTractionMultiplier;
   }
 
   double get marketInsightPerSecond {
@@ -2199,6 +2222,8 @@ class GameController extends ChangeNotifier {
           reputation += 12 * eventRewardMultiplier;
           customerTrust += 10;
           teamMorale += 4;
+          deliveryConfidenceSeconds = 90;
+          supportBacklogSeconds = math.max(0, supportBacklogSeconds - 30);
           _log(
             'Viral Moment converted into onboarding gains: +${formatNumber(progressBonus)} product progress and better retention.',
           );
@@ -2211,6 +2236,7 @@ class GameController extends ChangeNotifier {
           reputation += 18 * eventRewardMultiplier;
           traction += tractionUnlocked ? 8 * focusTractionMultiplier : 0;
           viralBoostSeconds = 75;
+          supportBacklogSeconds = 95;
           customerTrust -= 12;
           teamMorale -= 6;
           _log(
@@ -2229,6 +2255,7 @@ class GameController extends ChangeNotifier {
           focusTokens += 1;
           customerTrust += 6;
           teamMorale -= 3;
+          deliveryConfidenceSeconds = 50;
           _log(
             'Investor Call turned into a press cycle: +${formatNumber(valuationBoost)} valuation and stronger market buzz.',
           );
@@ -2241,6 +2268,7 @@ class GameController extends ChangeNotifier {
           valuation += bonusCash * 2.8;
           reputation += 25 * eventRewardMultiplier;
           investorBuzzSeconds = 70;
+          supportBacklogSeconds = math.max(supportBacklogSeconds, 40);
           focusTokens += 1;
           customerTrust -= 8;
           teamMorale += 2;
@@ -2258,6 +2286,7 @@ class GameController extends ChangeNotifier {
           credits += bonusCredits;
           productProgress += 12 * eventRewardMultiplier;
           permanentTeamSlotBonus += 1;
+          recruitingPipelineSeconds = 110;
           teamMorale += 12;
           customerTrust += 4;
           _log(
@@ -2270,6 +2299,7 @@ class GameController extends ChangeNotifier {
               playbookEventMultiplier;
           credits += bonusCredits;
           recruitingRushSeconds = 80;
+          recruitingPipelineSeconds = 50;
           teamMorale -= unlockedPlaybooks.contains(PlaybookId.peopleOpsManual)
               ? 2
               : 8;
@@ -2766,7 +2796,7 @@ class GameController extends ChangeNotifier {
     customerTrust -= contract == ContractType.channelPartnership ? 3 : 0;
     teamMorale -= contract == ContractType.enterpriseRollout ? 4 : 1;
     _log(
-      'Contract started: ${contract.label}. Delivery ETA ${contract.durationSeconds}s.',
+      'Contract started: ${contract.label}. Delivery ETA ${contract.durationSeconds}s. Success chance ${(contractSuccessChance(contract) * 100).round()}%.',
     );
     save();
     notifyListeners();
@@ -2779,7 +2809,19 @@ class GameController extends ChangeNotifier {
       notifyListeners();
       return;
     }
-    final contractCash = contract.baseCashReward * contractRewardMultiplier;
+    final contractCash =
+        contract.baseCashReward *
+        contractRewardMultiplier *
+        switch (contract) {
+          ContractType.enterpriseRollout ||
+          ContractType.governmentTender
+              when unlockedPlaybooks.contains(PlaybookId.enterpriseDeck) =>
+            1.12,
+          ContractType.startupPilot || ContractType.channelPartnership
+              when unlockedPlaybooks.contains(PlaybookId.growthScript) =>
+            1.08,
+          _ => 1.0,
+        };
     final contractCredits =
         contract.baseCreditReward *
         (1 + marketExpansionLevel * 0.08) *
@@ -2807,8 +2849,12 @@ class GameController extends ChangeNotifier {
       ContractType.governmentTender => -3,
     };
     _unlockPlaybookFromContract(contract);
+    final rareDropText = _awardRareContractDrop(contract);
     lastContractSummary =
         '${contract.label}: +${formatNumber(contractCash)} cash, +${formatNumber(contractCredits)} credits.';
+    if (rareDropText.isNotEmpty) {
+      lastContractSummary = '$lastContractSummary $rareDropText';
+    }
     readyContract = null;
     _log('Contract closed: $lastContractSummary');
     _refreshValuation();
@@ -2974,6 +3020,71 @@ class GameController extends ChangeNotifier {
       math.pow(system.costGrowth, systemLevel(system)).toDouble();
   double contractInsightCost(ContractType contract) =>
       contract.baseInsightCost + contractWins * 5.0;
+  double contractSuccessChance(ContractType contract) {
+    final chance =
+        0.50 +
+        productStageIndex * 0.035 +
+        fundingStageIndex * 0.025 +
+        marketExpansionLevel * 0.03 +
+        (customerTrust - 50) / 180 +
+        (teamMorale - 50) / 220 +
+        onboardingLabLevel * 0.025 +
+        supportCommandLevel * 0.03 +
+        (activeLead == TeamLeadFocus.operations ? 0.05 : 0.0) +
+        (equippedAdvisor == AdvisorId.operatorCoach ? 0.06 : 0.0) +
+        (unlockedPlaybooks.contains(PlaybookId.peopleOpsManual) ? 0.05 : 0.0) +
+        (unlockedPlaybooks.contains(PlaybookId.enterpriseDeck) &&
+                (contract == ContractType.enterpriseRollout ||
+                    contract == ContractType.governmentTender)
+            ? 0.08
+            : 0.0) +
+        (unlockedPlaybooks.contains(PlaybookId.growthScript) &&
+                (contract == ContractType.startupPilot ||
+                    contract == ContractType.channelPartnership)
+            ? 0.05
+            : 0.0) +
+        eventContractSuccessModifier;
+    return chance.clamp(0.18, 0.97);
+  }
+
+  String contractRiskLabel(ContractType contract) {
+    final chance = contractSuccessChance(contract);
+    if (chance >= 0.85) return 'Low risk';
+    if (chance >= 0.68) return 'Medium risk';
+    return 'High risk';
+  }
+
+  String contractFailurePreview(ContractType contract) => switch (contract) {
+    ContractType.startupPilot =>
+      'Failure: -6 trust, -4 morale, small reputation hit.',
+    ContractType.talentBrandSprint =>
+      'Failure: -8 morale, weaker hiring pipeline, -4 trust.',
+    ContractType.smbRollout =>
+      'Failure: -8 trust, -6 morale, +1 crisis.',
+    ContractType.channelPartnership =>
+      'Failure: -10 trust, -8 morale, event backlash.',
+    ContractType.enterpriseRollout =>
+      'Failure: -12 trust, -10 morale, +1 crisis and board pressure.',
+    ContractType.governmentTender =>
+      'Failure: -14 trust, -12 morale, +2 crisis and heavy board pressure.',
+  };
+
+  List<String> get activeConsequenceLabels {
+    final labels = <String>[];
+    if (supportBacklogSeconds > 0) {
+      labels.add('Support backlog ${supportBacklogSeconds.ceil()}s');
+    }
+    if (deliveryConfidenceSeconds > 0) {
+      labels.add('Delivery confidence ${deliveryConfidenceSeconds.ceil()}s');
+    }
+    if (recruitingPipelineSeconds > 0) {
+      labels.add('Hiring pipeline ${recruitingPipelineSeconds.ceil()}s');
+    }
+    if (viralBoostSeconds > 0) labels.add('Revenue burst ${viralBoostSeconds.ceil()}s');
+    if (investorBuzzSeconds > 0) labels.add('Board buzz ${investorBuzzSeconds.ceil()}s');
+    if (recruitingRushSeconds > 0) labels.add('Hiring rush ${recruitingRushSeconds.ceil()}s');
+    return labels;
+  }
 
   String get officeMilestoneHeadline => switch (officeLevel) {
     2 =>
@@ -3286,6 +3397,9 @@ class GameController extends ChangeNotifier {
       'operatorLegacyLevel': operatorLegacyLevel,
       'rainmakerLegacyLevel': rainmakerLegacyLevel,
       'eventCooldownSeconds': eventCooldownSeconds,
+      'supportBacklogSeconds': supportBacklogSeconds,
+      'deliveryConfidenceSeconds': deliveryConfidenceSeconds,
+      'recruitingPipelineSeconds': recruitingPipelineSeconds,
       'viralBoostSeconds': viralBoostSeconds,
       'investorBuzzSeconds': investorBuzzSeconds,
       'recruitingRushSeconds': recruitingRushSeconds,
@@ -3386,6 +3500,12 @@ class GameController extends ChangeNotifier {
     rainmakerLegacyLevel = integer('rainmakerLegacyLevel');
     eventCooldownSeconds =
         (json['eventCooldownSeconds'] as num?)?.toDouble() ?? 35;
+    supportBacklogSeconds =
+        (json['supportBacklogSeconds'] as num?)?.toDouble() ?? 0;
+    deliveryConfidenceSeconds =
+        (json['deliveryConfidenceSeconds'] as num?)?.toDouble() ?? 0;
+    recruitingPipelineSeconds =
+        (json['recruitingPipelineSeconds'] as num?)?.toDouble() ?? 0;
     viralBoostSeconds = (json['viralBoostSeconds'] as num?)?.toDouble() ?? 0;
     investorBuzzSeconds =
         (json['investorBuzzSeconds'] as num?)?.toDouble() ?? 0;
@@ -3638,6 +3758,9 @@ class GameController extends ChangeNotifier {
       .fold<int>(0, (sum, role) => sum + roleCount(role));
 
   void _tickTimedSystems(double seconds) {
+    supportBacklogSeconds = math.max(0, supportBacklogSeconds - seconds);
+    deliveryConfidenceSeconds = math.max(0, deliveryConfidenceSeconds - seconds);
+    recruitingPipelineSeconds = math.max(0, recruitingPipelineSeconds - seconds);
     viralBoostSeconds = math.max(0, viralBoostSeconds - seconds);
     investorBuzzSeconds = math.max(0, investorBuzzSeconds - seconds);
     recruitingRushSeconds = math.max(0, recruitingRushSeconds - seconds);
@@ -3669,11 +3792,14 @@ class GameController extends ChangeNotifier {
     if (activeContract != null) {
       activeContractSeconds = math.max(0, activeContractSeconds - seconds);
       if (activeContractSeconds <= 0) {
-        readyContract = activeContract;
+        final contract = activeContract!;
         activeContract = null;
-        _log(
-          'Contract ready to close: ${readyContract!.label}. Claim the payout.',
-        );
+        if (_contractSucceeded(contract)) {
+          readyContract = contract;
+          _log('Contract ready to close: ${readyContract!.label}. Claim the payout.');
+        } else {
+          _applyContractFailure(contract);
+        }
       }
     }
     if (activeChallenge == ChallengeId.hypergrowthRun &&
@@ -3741,6 +3867,97 @@ class GameController extends ChangeNotifier {
         }
         break;
     }
+  }
+
+  bool _contractSucceeded(ContractType contract) {
+    final roll =
+        (contractWins * 13 +
+                teamSize * 3 +
+                _eventRotationIndex * 7 +
+                productStageIndex * 11 +
+                fundingStageIndex * 5 +
+                marketExpansionLevel * 17) %
+            100;
+    return roll < (contractSuccessChance(contract) * 100).round();
+  }
+
+  void _applyContractFailure(ContractType contract) {
+    final trustLoss = switch (contract) {
+      ContractType.startupPilot => 6.0,
+      ContractType.talentBrandSprint => 4.0,
+      ContractType.smbRollout => 8.0,
+      ContractType.channelPartnership => 10.0,
+      ContractType.enterpriseRollout => 12.0,
+      ContractType.governmentTender => 14.0,
+    };
+    final moraleLoss = switch (contract) {
+      ContractType.startupPilot => 4.0,
+      ContractType.talentBrandSprint => 8.0,
+      ContractType.smbRollout => 6.0,
+      ContractType.channelPartnership => 8.0,
+      ContractType.enterpriseRollout => 10.0,
+      ContractType.governmentTender => 12.0,
+    };
+    final repLoss = switch (contract) {
+      ContractType.startupPilot => 3.0,
+      ContractType.talentBrandSprint => 2.0,
+      ContractType.smbRollout => 5.0,
+      ContractType.channelPartnership => 6.0,
+      ContractType.enterpriseRollout => 8.0,
+      ContractType.governmentTender => 10.0,
+    };
+    customerTrust -= trustLoss;
+    teamMorale -= moraleLoss;
+    reputation = math.max(0, reputation - repLoss);
+    crisisLevel += switch (contract) {
+      ContractType.enterpriseRollout => 1,
+      ContractType.governmentTender => 2,
+      ContractType.channelPartnership => 1,
+      _ => 0,
+    };
+    if (contract == ContractType.enterpriseRollout ||
+        contract == ContractType.governmentTender) {
+      activeBoardDemand ??= BoardDemandType.burnCut;
+      boardPressureSeconds = math.max(boardPressureSeconds, 90);
+    }
+    if (contract == ContractType.channelPartnership ||
+        contract == ContractType.enterpriseRollout) {
+      supportBacklogSeconds = math.max(supportBacklogSeconds, 80);
+    }
+    lastContractSummary =
+        '${contract.label} slipped: -${trustLoss.toStringAsFixed(0)} trust, -${moraleLoss.toStringAsFixed(0)} morale.';
+    _log('Contract failed: $lastContractSummary');
+    _normalizeRunSignals();
+    _refreshValuation();
+    _checkGoals();
+    save();
+  }
+
+  String _awardRareContractDrop(ContractType contract) {
+    final signals =
+        customerTrust + teamMorale + productStageIndex * 8 + marketExpansionLevel * 12;
+    final milestoneRoll = (signals.floor() + contractWins * 9 + _eventRotationIndex) % 4;
+    if (contract == ContractType.governmentTender && milestoneRoll <= 1) {
+      founderReputation += 1;
+      boardInfluence += 1;
+      return 'Rare reward: +1 founder reputation and +1 board influence.';
+    }
+    if ((contract == ContractType.enterpriseRollout ||
+            contract == ContractType.channelPartnership) &&
+        milestoneRoll == 0 &&
+        !unlockedAdvisors.contains(AdvisorId.operatorCoach)) {
+      unlockedAdvisors.add(AdvisorId.operatorCoach);
+      return 'Rare reward: Operator Coach unlocked.';
+    }
+    if (contract == ContractType.talentBrandSprint && milestoneRoll <= 1) {
+      permanentTeamSlotBonus += 1;
+      return 'Rare reward: +1 permanent team slot.';
+    }
+    if (contract == ContractType.startupPilot && milestoneRoll == 0) {
+      featureBetTokens += 1;
+      return 'Rare reward: +1 feature bet token.';
+    }
+    return '';
   }
 
   int _portfolioPointsForExit() {
@@ -3907,6 +4124,9 @@ class GameController extends ChangeNotifier {
     readyContract = null;
     lastContractSummary = '';
     eventCooldownSeconds = eventCooldown;
+    supportBacklogSeconds = 0;
+    deliveryConfidenceSeconds = 0;
+    recruitingPipelineSeconds = 0;
     viralBoostSeconds = 0;
     investorBuzzSeconds = 0;
     recruitingRushSeconds = 0;
@@ -5929,6 +6149,13 @@ class _EventsPanel extends StatelessWidget {
         Text(
           'Trust ${controller.customerTrust.toStringAsFixed(0)} | Morale ${controller.teamMorale.toStringAsFixed(0)}',
         ),
+        if (controller.activeConsequenceLabels.isNotEmpty) ...[
+          const SizedBox(height: 8),
+          Text(
+            'Active consequences: ${controller.activeConsequenceLabels.join(' • ')}',
+            style: const TextStyle(fontSize: 12),
+          ),
+        ],
         const SizedBox(height: 6),
         const Text(
           'Revenue-heavy choices usually cash out harder right now, but they can lower trust or morale and make later contracts worse.',
@@ -6227,10 +6454,15 @@ class _ExpansionPanel extends StatelessWidget {
             Text(
               'Trust ${controller.customerTrust.toStringAsFixed(0)} | Morale ${controller.teamMorale.toStringAsFixed(0)} | Playbooks ${controller.unlockedPlaybooks.length}/${PlaybookId.values.length}',
             ),
+            const SizedBox(height: 8),
+            Text(
+              'Contracts now roll against trust, morale, playbooks, and event consequences. Safer runs close deals more reliably.',
+              style: const TextStyle(fontSize: 12),
+            ),
             if (controller.activeContract != null) ...[
               const SizedBox(height: 8),
               Text(
-                'Active contract: ${controller.activeContract!.label} | ${controller.activeContractSeconds.ceil()}s left',
+                'Active contract: ${controller.activeContract!.label} | ${controller.activeContractSeconds.ceil()}s left | ${(controller.contractSuccessChance(controller.activeContract!) * 100).round()}% success',
               ),
             ],
             if (controller.readyContract != null) ...[
@@ -6304,6 +6536,11 @@ class _ExpansionPanel extends StatelessWidget {
                     'Needs Trust ${contract.requiredTrust.toStringAsFixed(0)} / Morale ${contract.requiredMorale.toStringAsFixed(0)} / Insight ${formatNumber(controller.contractInsightCost(contract))}',
                     style: const TextStyle(fontSize: 12),
                   ),
+                  const SizedBox(height: 4),
+                  Text(
+                    '${controller.contractRiskLabel(contract)} • ${(controller.contractSuccessChance(contract) * 100).round()}% success • ${controller.contractFailurePreview(contract)}',
+                    style: const TextStyle(fontSize: 12),
+                  ),
                   const SizedBox(height: 8),
                   FilledButton(
                     key: Key('contract_${contract.name}_button'),
@@ -6339,6 +6576,10 @@ class _ExpansionPanel extends StatelessWidget {
                     ],
                   ),
                 ),
+              const Text(
+                'Growth Script trades a little trust floor for hotter loops. People Ops lowers burst upside but stabilizes hiring and delivery. Enterprise Deck makes big deals richer but slows pure product throughput.',
+                style: TextStyle(fontSize: 12),
+              ),
             ],
           ),
       ],
