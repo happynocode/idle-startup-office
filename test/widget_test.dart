@@ -22,6 +22,32 @@ void main() {
     expect(find.textContaining('Founder Tap'), findsOneWidget);
   });
 
+  testWidgets('research brief tab exposes the embedded markdown copy', (
+    tester,
+  ) async {
+    SharedPreferences.setMockInitialValues({});
+
+    await tester.pumpWidget(const StartupOfficeApp());
+    await tester.pump(const Duration(milliseconds: 250));
+
+    final scrollable = find.byType(ListView).at(0);
+    for (
+      var i = 0;
+      i < 20 && find.byKey(const Key('tab_brief')).evaluate().isEmpty;
+      i++
+    ) {
+      await tester.drag(scrollable, const Offset(-260, 0), warnIfMissed: false);
+      await tester.pump(const Duration(milliseconds: 200));
+    }
+
+    await tester.tap(find.byKey(const Key('tab_brief')));
+    await tester.pump(const Duration(milliseconds: 300));
+
+    expect(find.text('Research Brief'), findsOneWidget);
+    expect(find.byKey(const Key('research_brief_text')), findsOneWidget);
+    expect(find.textContaining('Idle Game 调研与改进建议'), findsOneWidget);
+  });
+
   test('controller can progress through a prestige-ready loop', () {
     final controller = GameController();
 

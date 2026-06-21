@@ -72,6 +72,20 @@ void main() {
     expect(find.textContaining('Portfolio companies'), findsOneWidget);
     expect(find.textContaining('Portfolio meta'), findsOneWidget);
   });
+
+  testWidgets('simulator acceptance exposes the full research brief tab', (
+    tester,
+  ) async {
+    await tester.pumpWidget(const StartupOfficeApp());
+    await _pumpUntilFound(tester, find.text('Startup Office'));
+
+    await _openTab(tester, 'tab_brief', dragX: -260);
+    await _scrollPanelUntilFound(
+      tester,
+      find.byKey(const Key('research_brief_text')),
+    );
+    expect(find.textContaining('Idle Game 调研与改进建议'), findsOneWidget);
+  });
 }
 
 Future<void> _tapAndPump(WidgetTester tester, Finder finder) async {
