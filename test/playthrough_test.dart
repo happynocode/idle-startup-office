@@ -662,4 +662,19 @@ void main() {
       expect(controller.crisisLevel, lessThan(3));
     },
   );
+
+  test('event archive persists and grants a collection-style bonus', () {
+    final controller = GameController();
+
+    controller.productStageIndex = 4;
+    controller.fundingStageIndex = 1;
+
+    controller.activeEvent = StartupEventType.viralMoment;
+    controller.resolveEvent(controller.primaryEventChoiceLabel);
+    controller.activeEvent = StartupEventType.recruitingRush;
+    controller.resolveEvent(controller.primaryEventChoiceLabel);
+
+    expect(controller.archivedEvents.length, 2);
+    expect(controller.archiveMultiplier, greaterThan(1));
+  });
 }

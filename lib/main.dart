@@ -770,6 +770,7 @@ class GameController extends ChangeNotifier {
   final Set<ChallengeId> completedChallenges = <ChallengeId>{};
   final Set<PlaybookId> unlockedPlaybooks = <PlaybookId>{};
   final Set<FounderTrophyId> unlockedTrophies = <FounderTrophyId>{};
+  final Set<StartupEventType> archivedEvents = <StartupEventType>{};
   final Set<String> claimedLiveOpsMissions = <String>{};
   async.Timer? _timer;
   SharedPreferences? _prefs;
@@ -1279,6 +1280,7 @@ class GameController extends ChangeNotifier {
   double get eventRewardMultiplier =>
       (1 + eventRewardLevel * 0.12 + growthLegacyLevel * 0.05) *
       specializationEventMultiplier;
+  double get archiveMultiplier => archivedEvents.length >= 2 ? 1.08 : 1.0;
   bool get momentumUnlocked => productStageIndex >= 1 || teamSize >= 3;
   double get founderFlowMultiplier => founderFlowSeconds > 0 ? 1.35 : 1.0;
   double get comebackBurstMultiplier => comebackBurstSeconds > 0 ? 1.22 : 1.0;
@@ -1423,6 +1425,7 @@ class GameController extends ChangeNotifier {
         specializationCashMultiplier *
         ventureThesisCashMultiplier *
         trophyCollectionMultiplier *
+        archiveMultiplier *
         activeLoopMultiplier *
         cashBurstMultiplier *
         focusCashMultiplier *
@@ -1451,6 +1454,7 @@ class GameController extends ChangeNotifier {
       specializationProductMultiplier *
       ventureThesisProductMultiplier *
       trophyCollectionMultiplier *
+      archiveMultiplier *
       activeLoopMultiplier *
       challengeProductMultiplier *
       advisorCollectionMultiplier *
@@ -1479,6 +1483,7 @@ class GameController extends ChangeNotifier {
       projectTrustMultiplier *
       reputationBurstMultiplier *
       ventureThesisRecoveryMultiplier *
+      archiveMultiplier *
       activeLoopMultiplier *
       systemReputationMultiplier;
   double get creditsPerSecond =>
@@ -1522,6 +1527,7 @@ class GameController extends ChangeNotifier {
         reputationBurstMultiplier *
         ventureThesisTractionMultiplier *
         productMatrixMultiplier *
+        archiveMultiplier *
         activeLoopMultiplier *
         playbookTractionMultiplier;
   }
@@ -2372,6 +2378,7 @@ class GameController extends ChangeNotifier {
       notifyListeners();
       return;
     }
+    archivedEvents.add(event);
     switch (event) {
       case StartupEventType.viralMoment:
         if (choice == secondaryEventChoiceLabel) {
@@ -3208,6 +3215,7 @@ class GameController extends ChangeNotifier {
     unlockedAdvisors.clear();
     unlockedPlaybooks.clear();
     unlockedTrophies.clear();
+    archivedEvents.clear();
     completedChallenges.clear();
     claimedLiveOpsMissions.clear();
     equippedAdvisor = null;
@@ -3708,6 +3716,9 @@ class GameController extends ChangeNotifier {
       'unlockedTrophies': unlockedTrophies
           .map<String>((trophy) => trophy.name)
           .toList(),
+      'archivedEvents': archivedEvents
+          .map<String>((event) => event.name)
+          .toList(),
       'completedChallenges': completedChallenges
           .map((challenge) => challenge.name)
           .toList(),
@@ -3908,6 +3919,16 @@ class GameController extends ChangeNotifier {
           (value) => FounderTrophyId.values.firstWhere(
             (trophy) => trophy.name == value,
             orElse: () => FounderTrophyId.flowState,
+          ),
+        ),
+      );
+    archivedEvents
+      ..clear()
+      ..addAll(
+        (json['archivedEvents'] as List<dynamic>? ?? const <dynamic>[]).map(
+          (value) => StartupEventType.values.firstWhere(
+            (event) => event.name == value,
+            orElse: () => StartupEventType.viralMoment,
           ),
         ),
       );
@@ -4395,6 +4416,9 @@ class GameController extends ChangeNotifier {
     }
     if (unlockedPlaybooks.length == PlaybookId.values.length) {
       _unlockTrophy(FounderTrophyId.playbookCollector);
+    }
+    if (archivedEvents.length == StartupEventType.values.length) {
+      _unlockTrophy(FounderTrophyId.bellRinger);
     }
   }
 
@@ -6577,10 +6601,21 @@ class _EventsPanel extends StatelessWidget {
         Text(
           'Trust ${controller.customerTrust.toStringAsFixed(0)} | Morale ${controller.teamMorale.toStringAsFixed(0)}',
         ),
+        const SizedBox(height: 8),
+        Text(
+          'Event archive ${controller.archivedEvents.length}/${StartupEventType.values.length} | Archive bonus x${controller.archiveMultiplier.toStringAsFixed(2)}',
+        ),
         if (controller.activeConsequenceLabels.isNotEmpty) ...[
           const SizedBox(height: 8),
           Text(
             'Active consequences: ${controller.activeConsequenceLabels.join(' • ')}',
+            style: const TextStyle(fontSize: 12),
+          ),
+        ],
+        if (controller.archivedEvents.isNotEmpty) ...[
+          const SizedBox(height: 8),
+          Text(
+            'Archived: ${controller.archivedEvents.map((event) => event.label).join(' • ')}',
             style: const TextStyle(fontSize: 12),
           ),
         ],
