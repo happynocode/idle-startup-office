@@ -16,10 +16,25 @@ void main() {
     expect(find.textContaining('Cash'), findsWidgets);
     expect(find.textContaining('Valuation'), findsWidgets);
 
-    await tester.tap(find.byKey(const Key('founder_tap_button')));
+    await tester.tap(
+      find.byKey(const Key('founder_tap_button')),
+      warnIfMissed: false,
+    );
     await tester.pump();
 
     expect(find.textContaining('Founder Tap'), findsOneWidget);
+  });
+
+  testWidgets('onboarding coachmark guides the first run', (tester) async {
+    SharedPreferences.setMockInitialValues({});
+
+    await tester.pumpWidget(const StartupOfficeApp());
+    await tester.pump(const Duration(milliseconds: 250));
+
+    expect(find.text('Quick start'), findsOneWidget);
+    await tester.tap(find.text('Start playing'), warnIfMissed: false);
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(find.text('Quick start'), findsNothing);
   });
 
   testWidgets('research brief tab exposes the embedded markdown copy', (
@@ -67,6 +82,7 @@ void main() {
 
     expect(controller.lifetimePrestiges, 1);
     expect(controller.prestigePoints, greaterThanOrEqualTo(1));
+    expect(controller.pendingPrestigeSummary, isNotNull);
     expect(controller.cash, 0);
   });
 }

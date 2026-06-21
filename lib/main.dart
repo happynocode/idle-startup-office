@@ -271,6 +271,18 @@ class StartupOfficeHome extends StatefulWidget {
 class _StartupOfficeHomeState extends State<StartupOfficeHome> {
   late final GameController controller;
   late final StartupOfficeFlameGame flameGame;
+  async.Timer? _signalTimer;
+  bool _eventDialogOpen = false;
+  bool _prestigeDialogOpen = false;
+  int _lastTapLevel = 1;
+  int _lastOfficeLevel = 1;
+  int _lastTeamSize = 0;
+  int _lastProductStageIndex = 0;
+  int _lastFundingStageIndex = 0;
+  int _lastContractChain = 0;
+  bool _wasInFounderFlow = false;
+  bool _wasInReturnSurge = false;
+  VisualSignal? _visualSignal;
   var selectedTab = OfficeTab.upgrades;
 
   @override
@@ -278,13 +290,148 @@ class _StartupOfficeHomeState extends State<StartupOfficeHome> {
     super.initState();
     controller = GameController();
     flameGame = StartupOfficeFlameGame(controller);
+    controller.addListener(_handleControllerUpdate);
     controller.loadAndStart();
   }
 
   @override
   void dispose() {
+    _signalTimer?.cancel();
+    controller.removeListener(_handleControllerUpdate);
     controller.dispose();
     super.dispose();
+  }
+
+  void _handleControllerUpdate() {
+    if (!mounted || !controller.loaded) return;
+    if (_lastTapLevel != controller.tapLevel) {
+      _showVisualSignal(
+        'Founder Focus Lv.${controller.tapLevel}',
+        'Manual taps hit harder. Keep chaining actions into Founder Flow.',
+        Icons.touch_app,
+      );
+      _lastTapLevel = controller.tapLevel;
+    }
+    if (_lastOfficeLevel != controller.officeLevel) {
+      _showVisualSignal(
+        'Office Lv.${controller.officeLevel}',
+        'More room, more team capacity, and stronger company presence.',
+        Icons.domain_add,
+      );
+      _lastOfficeLevel = controller.officeLevel;
+    }
+    if (_lastTeamSize != controller.teamSize &&
+        controller.teamSize > _lastTeamSize) {
+      _showVisualSignal(
+        'Team ${controller.teamSize}/${controller.teamCapacity}',
+        controller.nextTeamUnlockHint,
+        Icons.groups,
+      );
+      _lastTeamSize = controller.teamSize;
+    }
+    if (_lastProductStageIndex != controller.productStageIndex) {
+      _showVisualSignal(
+        'Product: ${controller.productStage}',
+        controller.nextProductUnlockHint,
+        Icons.rocket_launch,
+      );
+      _lastProductStageIndex = controller.productStageIndex;
+    }
+    if (_lastFundingStageIndex != controller.fundingStageIndex) {
+      _showVisualSignal(
+        'Funding: ${controller.fundingStage}',
+        controller.nextFundingUnlockHint,
+        Icons.trending_up,
+      );
+      _lastFundingStageIndex = controller.fundingStageIndex;
+    }
+    if (controller.contractChain >= 2 &&
+        controller.contractChain > _lastContractChain) {
+      _showVisualSignal(
+        'Deal Chain x${controller.contractChain}',
+        'Stay hot. Faster deliveries and richer payouts are online.',
+        Icons.handshake,
+      );
+    }
+    _lastContractChain = controller.contractChain;
+
+    final inFounderFlow = controller.founderFlowSeconds > 0;
+    if (inFounderFlow && !_wasInFounderFlow) {
+      _showVisualSignal(
+        'Founder Flow Live',
+        'Thirty seconds of burst output are active. Spend it now.',
+        Icons.bolt,
+      );
+    }
+    _wasInFounderFlow = inFounderFlow;
+
+    final inReturnSurge = controller.comebackBurstSeconds > 0;
+    if (inReturnSurge && !_wasInReturnSurge) {
+      _showVisualSignal(
+        'Return Surge',
+        'You came back at the perfect time. Push contracts and upgrades now.',
+        Icons.local_fire_department,
+      );
+    }
+    _wasInReturnSurge = inReturnSurge;
+
+    final pendingEvent = controller.pendingEventAnnouncement;
+    if (pendingEvent != null &&
+        !_eventDialogOpen &&
+        !controller.offlineSummaryPending) {
+      _eventDialogOpen = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) async {
+        if (!mounted) return;
+        await showDialog<void>(
+          context: context,
+          barrierDismissible: false,
+          builder: (context) => _StartupEventDialog(
+            event: pendingEvent,
+            primaryLabel: controller.primaryEventChoiceLabel,
+            secondaryLabel: controller.secondaryEventChoiceLabel,
+            onPrimary: () {
+              Navigator.of(context).pop();
+              controller.activateEvent();
+            },
+            onSecondary: () {
+              Navigator.of(context).pop();
+              controller.resolveEvent(controller.secondaryEventChoiceLabel);
+            },
+          ),
+        );
+        controller.dismissPendingEventAnnouncement();
+        _eventDialogOpen = false;
+      });
+    }
+
+    final pendingPrestige = controller.pendingPrestigeSummary;
+    if (pendingPrestige != null && !_prestigeDialogOpen) {
+      _prestigeDialogOpen = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) async {
+        if (!mounted) return;
+        await showDialog<void>(
+          context: context,
+          barrierDismissible: false,
+          builder: (context) => _PrestigeSummaryDialog(
+            summary: pendingPrestige,
+            onClose: () => Navigator.of(context).pop(),
+          ),
+        );
+        controller.clearPendingPrestigeSummary();
+        _prestigeDialogOpen = false;
+      });
+    }
+  }
+
+  void _showVisualSignal(String title, String body, IconData icon) {
+    _signalTimer?.cancel();
+    setState(() {
+      _visualSignal = VisualSignal(title: title, body: body, icon: icon);
+    });
+    _signalTimer = async.Timer(const Duration(seconds: 3), () {
+      if (!mounted) return;
+      setState(() => _visualSignal = null);
+    });
   }
 
   @override
@@ -300,6 +447,8 @@ class _StartupOfficeHomeState extends State<StartupOfficeHome> {
                 final office = _OfficeStage(
                   controller: controller,
                   game: flameGame,
+                  visualSignal: _visualSignal,
+                  onDismissOnboarding: controller.dismissOnboardingCoachmark,
                 );
                 final side = _ControlPanel(
                   controller: controller,
@@ -1060,6 +1209,7 @@ class GameController extends ChangeNotifier {
   int ventureThesisRefreshes = 0;
   bool starterPackOwned = false;
   bool noAdsOwned = false;
+  bool onboardingCoachmarkDismissed = false;
   bool offlineSummaryPending = false;
   double lastOfflineCash = 0;
   double lastOfflineCredits = 0;
@@ -1109,6 +1259,8 @@ class GameController extends ChangeNotifier {
   CapitalPolicy? activeCapitalPolicy;
   bool productStrategyChoicePending = false;
   bool capitalPolicyChoicePending = false;
+  StartupEventType? pendingEventAnnouncement;
+  PrestigeSummary? pendingPrestigeSummary;
   double peakValuationRecord = 0;
   int fastestIpoSecondsRecord = 0;
   bool cleanBootstrappedRecord = false;
@@ -1223,6 +1375,8 @@ class GameController extends ChangeNotifier {
   double get prestigeMultiplier =>
       1 + prestigePoints * 0.08 + financeLegacyLevel * 0.04;
   bool get founderSpecializationsUnlocked => lifetimePrestiges >= 1;
+  bool get showOnboardingCoachmark =>
+      !onboardingCoachmarkDismissed && lifetimePrestiges == 0 && teamSize < 3;
   bool get ventureThesisUnlocked =>
       lifetimePrestiges >= 2 || portfolioCompanies >= 1;
   bool get productMatrixUnlocked => portfolioCompanies >= 2;
@@ -2163,6 +2317,8 @@ class GameController extends ChangeNotifier {
     } else if (resetForIntegration) {
       _seedIntegrationState();
     }
+    pendingEventAnnouncement = null;
+    pendingPrestigeSummary = null;
     _applyOfflineEarnings();
     _log('Opened the office. Build something tiny, then make it huge.');
     _timer = async.Timer.periodic(const Duration(seconds: 1), (_) => tick(1));
@@ -3398,6 +3554,15 @@ class GameController extends ChangeNotifier {
     _log(
       'Prestige complete. Gained $gained Prestige Points, $gained Legacy Tokens, $gained Founder Reputation, +1 Founder Origin Token, and $portfolioGained Portfolio Points.',
     );
+    pendingPrestigeSummary = PrestigeSummary(
+      gainedPrestigePoints: gained,
+      gainedLegacyTokens: gained,
+      gainedFounderReputation: gained,
+      gainedFounderOriginTokens: 1,
+      gainedPortfolioPoints: portfolioGained,
+      nextPrestigeTarget: prestigeTarget,
+      newMultiplier: prestigeMultiplier,
+    );
     _checkGoals();
     save();
     notifyListeners();
@@ -3452,6 +3617,9 @@ class GameController extends ChangeNotifier {
     activeSeason = null;
     productStrategyChoicePending = false;
     capitalPolicyChoicePending = false;
+    pendingEventAnnouncement = null;
+    pendingPrestigeSummary = null;
+    onboardingCoachmarkDismissed = false;
     peakValuationRecord = 0;
     fastestIpoSecondsRecord = 0;
     cleanBootstrappedRecord = false;
@@ -3464,6 +3632,20 @@ class GameController extends ChangeNotifier {
     _log('Fresh save started.');
     save();
     notifyListeners();
+  }
+
+  void dismissOnboardingCoachmark() {
+    onboardingCoachmarkDismissed = true;
+    save();
+    notifyListeners();
+  }
+
+  void dismissPendingEventAnnouncement() {
+    pendingEventAnnouncement = null;
+  }
+
+  void clearPendingPrestigeSummary() {
+    pendingPrestigeSummary = null;
   }
 
   double get tapUpgradeCost => 15 * math.pow(1.55, tapLevel - 1).toDouble();
@@ -3931,6 +4113,7 @@ class GameController extends ChangeNotifier {
       'eventRotationIndex': _eventRotationIndex,
       'starterPackOwned': starterPackOwned,
       'noAdsOwned': noAdsOwned,
+      'onboardingCoachmarkDismissed': onboardingCoachmarkDismissed,
       'unlockedPlaybooks': unlockedPlaybooks
           .map((playbook) => playbook.name)
           .toList(),
@@ -4116,6 +4299,7 @@ class GameController extends ChangeNotifier {
     _eventRotationIndex = integer('eventRotationIndex');
     starterPackOwned = json['starterPackOwned'] == true;
     noAdsOwned = json['noAdsOwned'] == true;
+    onboardingCoachmarkDismissed = json['onboardingCoachmarkDismissed'] == true;
     unlockedPlaybooks
       ..clear()
       ..addAll(
@@ -4398,6 +4582,7 @@ class GameController extends ChangeNotifier {
     ];
     activeEvent = options[_eventRotationIndex % options.length];
     _eventRotationIndex += 1;
+    pendingEventAnnouncement = activeEvent;
     eventCooldownSeconds = 0;
     _log('New startup event: ${activeEvent!.label}.');
   }
@@ -5943,9 +6128,16 @@ class OfficeSceneComponent extends PositionComponent
 }
 
 class _OfficeStage extends StatelessWidget {
-  const _OfficeStage({required this.controller, required this.game});
+  const _OfficeStage({
+    required this.controller,
+    required this.game,
+    required this.visualSignal,
+    required this.onDismissOnboarding,
+  });
   final GameController controller;
   final StartupOfficeFlameGame game;
+  final VisualSignal? visualSignal;
+  final VoidCallback onDismissOnboarding;
 
   @override
   Widget build(BuildContext context) {
@@ -5961,12 +6153,20 @@ class _OfficeStage extends StatelessWidget {
             children: [
               _StatsBar(controller: controller),
               const SizedBox(height: 10),
-              FilledButton.icon(
-                key: const Key('founder_tap_button'),
-                onPressed: controller.founderTap,
-                icon: const Icon(Icons.touch_app),
-                label: Text(
-                  'Founder Tap +${formatNumber(controller.tapIncome)}',
+              AnimatedScale(
+                duration: const Duration(milliseconds: 220),
+                scale:
+                    controller.founderFlowSeconds > 0 ||
+                        controller.comebackBurstSeconds > 0
+                    ? 1.04
+                    : 1,
+                child: FilledButton.icon(
+                  key: const Key('founder_tap_button'),
+                  onPressed: controller.founderTap,
+                  icon: const Icon(Icons.touch_app),
+                  label: Text(
+                    'Founder Tap +${formatNumber(controller.tapIncome)}',
+                  ),
                 ),
               ),
             ],
@@ -5994,6 +6194,23 @@ class _OfficeStage extends StatelessWidget {
               label: Text(controller.activeEvent!.label),
             ),
           ),
+        if (visualSignal != null)
+          Positioned(
+            left: 16,
+            right: 16,
+            top: 16,
+            child: _VisualSignalBanner(signal: visualSignal!),
+          ),
+        if (controller.showOnboardingCoachmark)
+          Positioned(
+            left: 16,
+            right: 16,
+            top: 16,
+            child: _OnboardingCoachmark(
+              controller: controller,
+              onDismiss: onDismissOnboarding,
+            ),
+          ),
       ],
     );
   }
@@ -6005,68 +6222,132 @@ class _StatsBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return DecoratedBox(
+    final highlighted =
+        controller.founderFlowSeconds > 0 ||
+        controller.comebackBurstSeconds > 0 ||
+        controller.contractChain >= 2;
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 280),
       decoration: BoxDecoration(
-        color: const Color(0xfffffbf0),
+        color: highlighted ? const Color(0xfffff4cf) : const Color(0xfffffbf0),
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: const Color(0xff24352d), width: 2),
+        border: Border.all(
+          color: highlighted
+              ? const Color(0xffd88b1b)
+              : const Color(0xff24352d),
+          width: 2,
+        ),
+        boxShadow: highlighted
+            ? const [
+                BoxShadow(
+                  color: Color(0x44f4d35e),
+                  blurRadius: 18,
+                  spreadRadius: 1,
+                ),
+              ]
+            : const [],
       ),
       child: Padding(
         padding: const EdgeInsets.all(10),
-        child: Wrap(
-          spacing: 12,
-          runSpacing: 8,
-          alignment: WrapAlignment.center,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
           children: [
-            _Metric(label: 'Cash', value: formatNumber(controller.cash)),
-            _Metric(label: 'Credits', value: formatNumber(controller.credits)),
-            _Metric(
-              label: 'Valuation',
-              value: formatNumber(controller.valuation),
+            Wrap(
+              spacing: 12,
+              runSpacing: 8,
+              alignment: WrapAlignment.center,
+              children: [
+                _Metric(label: 'Cash', value: formatNumber(controller.cash)),
+                _Metric(
+                  label: 'Credits',
+                  value: formatNumber(controller.credits),
+                ),
+                _Metric(
+                  label: 'Valuation',
+                  value: formatNumber(controller.valuation),
+                ),
+                _Metric(
+                  label: 'Auto',
+                  value: '${formatNumber(controller.autoIncomePerSecond)}/s',
+                ),
+                _Metric(
+                  label: 'Autotap',
+                  value:
+                      '${formatNumber(controller.founderAutomationPerSecond)}/s',
+                ),
+                _Metric(
+                  label: 'Traction',
+                  value: formatNumber(controller.traction),
+                ),
+                _Metric(
+                  label: 'Trust',
+                  value: controller.customerTrust.toStringAsFixed(0),
+                ),
+                _Metric(
+                  label: 'Morale',
+                  value: controller.teamMorale.toStringAsFixed(0),
+                ),
+                _Metric(
+                  label: 'Insight',
+                  value: formatNumber(controller.marketInsight),
+                ),
+                _Metric(
+                  label: 'Flow',
+                  value: controller.momentumUnlocked
+                      ? '${controller.founderMomentum.toStringAsFixed(0)}%'
+                      : 'Locked',
+                ),
+                _Metric(
+                  label: 'Chain',
+                  value: controller.contractChain > 0
+                      ? 'x${controller.contractChain}'
+                      : '-',
+                ),
+                _Metric(
+                  label: 'Team',
+                  value: '${controller.teamSize}/${controller.teamCapacity}',
+                ),
+                _Metric(label: 'Focus', value: controller.companyFocus.label),
+                _Metric(
+                  label: 'Prestige',
+                  value: '${controller.prestigePoints}',
+                ),
+                _Metric(
+                  label: 'Portfolio',
+                  value: '${controller.portfolioPoints}',
+                ),
+              ],
             ),
-            _Metric(
-              label: 'Auto',
-              value: '${formatNumber(controller.autoIncomePerSecond)}/s',
-            ),
-            _Metric(
-              label: 'Autotap',
-              value: '${formatNumber(controller.founderAutomationPerSecond)}/s',
-            ),
-            _Metric(
-              label: 'Traction',
-              value: formatNumber(controller.traction),
-            ),
-            _Metric(
-              label: 'Trust',
-              value: controller.customerTrust.toStringAsFixed(0),
-            ),
-            _Metric(
-              label: 'Morale',
-              value: controller.teamMorale.toStringAsFixed(0),
-            ),
-            _Metric(
-              label: 'Insight',
-              value: formatNumber(controller.marketInsight),
-            ),
-            _Metric(
-              label: 'Flow',
-              value: controller.momentumUnlocked
-                  ? '${controller.founderMomentum.toStringAsFixed(0)}%'
-                  : 'Locked',
-            ),
-            _Metric(
-              label: 'Chain',
-              value: controller.contractChain > 0
-                  ? 'x${controller.contractChain}'
-                  : '-',
-            ),
-            _Metric(
-              label: 'Team',
-              value: '${controller.teamSize}/${controller.teamCapacity}',
-            ),
-            _Metric(label: 'Focus', value: controller.companyFocus.label),
-            _Metric(label: 'Prestige', value: '${controller.prestigePoints}'),
-            _Metric(label: 'Portfolio', value: '${controller.portfolioPoints}'),
+            if (controller.founderFlowSeconds > 0 ||
+                controller.comebackBurstSeconds > 0 ||
+                controller.contractChain >= 2) ...[
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                alignment: WrapAlignment.center,
+                children: [
+                  if (controller.founderFlowSeconds > 0)
+                    _SignalChip(
+                      label:
+                          'Founder Flow ${controller.founderFlowSeconds.ceil()}s',
+                      color: const Color(0xfff59e0b),
+                    ),
+                  if (controller.comebackBurstSeconds > 0)
+                    _SignalChip(
+                      label:
+                          'Return Surge ${controller.comebackBurstSeconds.ceil()}s',
+                      color: const Color(0xffef4444),
+                    ),
+                  if (controller.contractChain >= 2)
+                    _SignalChip(
+                      label:
+                          'Deal Chain x${controller.contractChain} • Reward x${controller.contractChainMultiplier.toStringAsFixed(2)}',
+                      color: const Color(0xff1f8f72),
+                    ),
+                ],
+              ),
+            ],
           ],
         ),
       ),
@@ -8210,6 +8491,233 @@ class _OverlayNotice extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+class _SignalChip extends StatelessWidget {
+  const _SignalChip({required this.label, required this.color});
+  final String label;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.14),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: color, width: 1.2),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          fontSize: 11,
+          fontWeight: FontWeight.w900,
+          color: color,
+        ),
+      ),
+    );
+  }
+}
+
+class VisualSignal {
+  const VisualSignal({
+    required this.title,
+    required this.body,
+    required this.icon,
+  });
+  final String title;
+  final String body;
+  final IconData icon;
+}
+
+class _VisualSignalBanner extends StatelessWidget {
+  const _VisualSignalBanner({required this.signal});
+  final VisualSignal signal;
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedOpacity(
+      duration: const Duration(milliseconds: 180),
+      opacity: 1,
+      child: Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: const Color(0xff17251f).withValues(alpha: 0.92),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: const Color(0xfff4d35e), width: 1.4),
+          boxShadow: const [
+            BoxShadow(
+              color: Color(0x44000000),
+              blurRadius: 18,
+              offset: Offset(0, 8),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            Icon(signal.icon, color: const Color(0xfff4d35e)),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    signal.title,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    signal.body,
+                    style: const TextStyle(
+                      color: Color(0xffdbe7df),
+                      fontSize: 12,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _OnboardingCoachmark extends StatelessWidget {
+  const _OnboardingCoachmark({
+    required this.controller,
+    required this.onDismiss,
+  });
+  final GameController controller;
+  final VoidCallback onDismiss;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: const Color(0xfff7f0dc),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xff1f8f72), width: 1.5),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Quick start',
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900),
+          ),
+          const SizedBox(height: 8),
+          const Text('1. Tap the founder button to seed cash and momentum.'),
+          const Text('2. Buy one hire, then ship a product milestone.'),
+          const Text(
+            '3. Watch for events and contracts to unlock the next loop.',
+          ),
+          const SizedBox(height: 8),
+          Text(
+            controller.nextTeamUnlockHint,
+            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
+          ),
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              Expanded(
+                child: FilledButton(
+                  onPressed: onDismiss,
+                  child: const Text('Start playing'),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _StartupEventDialog extends StatelessWidget {
+  const _StartupEventDialog({
+    required this.event,
+    required this.primaryLabel,
+    required this.secondaryLabel,
+    required this.onPrimary,
+    required this.onSecondary,
+  });
+  final StartupEventType event;
+  final String primaryLabel;
+  final String secondaryLabel;
+  final VoidCallback onPrimary;
+  final VoidCallback onSecondary;
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: Row(
+        children: [
+          Icon(event.icon),
+          const SizedBox(width: 8),
+          Expanded(child: Text(event.label)),
+        ],
+      ),
+      content: Text(event.description),
+      actions: [
+        TextButton(onPressed: onSecondary, child: Text(secondaryLabel)),
+        FilledButton(onPressed: onPrimary, child: Text(primaryLabel)),
+      ],
+    );
+  }
+}
+
+class PrestigeSummary {
+  const PrestigeSummary({
+    required this.gainedPrestigePoints,
+    required this.gainedLegacyTokens,
+    required this.gainedFounderReputation,
+    required this.gainedFounderOriginTokens,
+    required this.gainedPortfolioPoints,
+    required this.nextPrestigeTarget,
+    required this.newMultiplier,
+  });
+  final int gainedPrestigePoints;
+  final int gainedLegacyTokens;
+  final int gainedFounderReputation;
+  final int gainedFounderOriginTokens;
+  final int gainedPortfolioPoints;
+  final double nextPrestigeTarget;
+  final double newMultiplier;
+}
+
+class _PrestigeSummaryDialog extends StatelessWidget {
+  const _PrestigeSummaryDialog({required this.summary, required this.onClose});
+  final PrestigeSummary summary;
+  final VoidCallback onClose;
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Prestige complete'),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('+${summary.gainedPrestigePoints} Prestige Points'),
+          Text('+${summary.gainedLegacyTokens} Legacy Tokens'),
+          Text('+${summary.gainedFounderReputation} Founder Reputation'),
+          Text('+${summary.gainedFounderOriginTokens} Founder Origin Token'),
+          Text('+${summary.gainedPortfolioPoints} Portfolio Points'),
+          const SizedBox(height: 8),
+          Text('Next target: ${formatNumber(summary.nextPrestigeTarget)}'),
+          Text('New multiplier: x${summary.newMultiplier.toStringAsFixed(2)}'),
+        ],
+      ),
+      actions: [
+        FilledButton(onPressed: onClose, child: const Text('Continue')),
+      ],
     );
   }
 }
