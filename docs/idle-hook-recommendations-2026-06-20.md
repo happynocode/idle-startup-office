@@ -113,22 +113,29 @@
 
 这一步很重要，因为 Idle Game 的乐趣不只是有系统，还要让玩家看得见自己的节奏和下一步目标。
 
+### 4.5 第二层 Prestige 与 Reveal
+
+我又补了一层更高阶的 meta：
+
+- `Venture Thesis` 让第二次 prestige 后的公司路线真正分化
+- `Product Matrix` 让多产品线变成可见的长期目标
+- `Holding Platform` 让后期公司形态继续升级
+
+这一步对应的是“重开后不是继续同一局，而是进入新层”。
+
+### 4.6 收藏与回收
+
+我还加了 `Founder Trophies` 和 `Crisis Recovery`：
+
+- trophy 负责长期收藏目标
+- crisis response 负责失败后的恢复选择
+- long-offline return 会转成更强的 re-entry surge
+
 ## 5. 还缺什么
 
 如果要继续往“真正上头”的方向走，你这款游戏下一阶段还缺 5 个关键层：
 
-### 5.1 第二层 Prestige
-
-现在 prestige 已经有了，但还缺“重开后像进入新游戏”的第二层变化。
-
-建议把 `IPO / Exit` 之后做成更强的 meta layer，比如：
-
-- 新创业主题
-- 新市场规则
-- 新 founder archetype
-- 新公司模型
-
-### 5.2 更强的 Build 分化
+### 5.1 更强的 Build 分化
 
 现在 focus / advisor / playbook / founder origin 都有了，但还可以更极端。
 
@@ -138,7 +145,7 @@
 - Growth-led: 更强 traction / event burst / risky contracts
 - Finance-led: 更强 round timing / valuation / safer reset
 
-### 5.3 收藏型长期目标
+### 5.2 收藏型长期目标
 
 优秀 idle game 往往会给玩家一个“不止刷数值，还想收集”的长期目标。
 
@@ -149,7 +156,7 @@
 - Founder trophies
 - 公司史诗事件收藏
 
-### 5.4 Reveal 感
+### 5.3 Reveal 感
 
 很多优秀作品的乐趣来自 `不断揭示新层`。
 
@@ -159,7 +166,7 @@
 - 从单产品到产品矩阵
 - 从创业公司到控股平台
 
-### 5.5 更强的失败代价与恢复手段
+### 5.4 更强的失败代价与恢复手段
 
 现在失败存在，但恢复选择还可以更戏剧化。
 

@@ -535,6 +535,85 @@ enum PlaybookId {
   final IconData icon;
 }
 
+enum VentureThesis {
+  productStudio(
+    'Product Studio',
+    'Adds stronger shipping, trust retention, and product-matrix upside.',
+    Icons.dashboard_customize,
+  ),
+  distributionMachine(
+    'Distribution Machine',
+    'Adds hotter event loops, riskier contracts, and bigger traction spikes.',
+    Icons.campaign,
+  ),
+  capitalEngine(
+    'Capital Engine',
+    'Adds safer recovery, stronger funding optics, and better late-run exits.',
+    Icons.account_balance,
+  );
+
+  const VentureThesis(this.label, this.description, this.icon);
+  final String label;
+  final String description;
+  final IconData icon;
+}
+
+enum FounderTrophyId {
+  flowState(
+    'Flow State',
+    'Trigger founder flow for the first time.',
+    Icons.bolt,
+  ),
+  dealCloser(
+    'Deal Closer',
+    'Reach a 3x deal chain in one run.',
+    Icons.handshake,
+  ),
+  bellRinger(
+    'Bell Ringer',
+    'Reach IPO and prove the company can go public.',
+    Icons.notifications_active,
+  ),
+  comebackKid(
+    'Comeback Kid',
+    'Return after a long break and cash in the re-entry surge.',
+    Icons.refresh,
+  ),
+  playbookCollector(
+    'Playbook Collector',
+    'Unlock every playbook in the shelf.',
+    Icons.collections_bookmark,
+  );
+
+  const FounderTrophyId(this.label, this.description, this.icon);
+  final String label;
+  final String description;
+  final IconData icon;
+}
+
+enum CrisisResponseType {
+  prRepair(
+    'PR Repair',
+    'Spend cash to restore trust and calm the public story.',
+    Icons.campaign,
+  ),
+  rescueFinancing(
+    'Rescue Financing',
+    'Trade valuation quality for liquidity and lower crisis pressure.',
+    Icons.health_and_safety,
+  ),
+  teamReset(
+    'Team Reset',
+    'Stabilize morale and process, but slow momentum for a moment.',
+    Icons.favorite,
+  );
+
+  const CrisisResponseType(this.label, this.description, this.icon);
+  final String label;
+  final String description;
+  final IconData icon;
+}
+
 enum PortfolioTrack {
   talentBench(
     'Talent Bench',
@@ -690,6 +769,7 @@ class GameController extends ChangeNotifier {
   final Set<AdvisorId> unlockedAdvisors = <AdvisorId>{};
   final Set<ChallengeId> completedChallenges = <ChallengeId>{};
   final Set<PlaybookId> unlockedPlaybooks = <PlaybookId>{};
+  final Set<FounderTrophyId> unlockedTrophies = <FounderTrophyId>{};
   final Set<String> claimedLiveOpsMissions = <String>{};
   async.Timer? _timer;
   SharedPreferences? _prefs;
@@ -752,6 +832,7 @@ class GameController extends ChangeNotifier {
   int capitalPolicyRefreshes = 0;
   int founderOriginTokens = 0;
   int seasonTokens = 0;
+  int ventureThesisRefreshes = 0;
   bool starterPackOwned = false;
   bool noAdsOwned = false;
   bool offlineSummaryPending = false;
@@ -792,6 +873,7 @@ class GameController extends ChangeNotifier {
   ProjectType? activeProject;
   ProjectType? readyProject;
   CultureIncidentType? activeCultureIncident;
+  VentureThesis? activeVentureThesis;
   CompanyFocus companyFocus = CompanyFocus.balanced;
   StartupEventType? activeEvent;
   AdvisorId? equippedAdvisor;
@@ -895,6 +977,7 @@ class GameController extends ChangeNotifier {
     SeasonEventType.capitalWeek => 0.88,
     _ => 1.0,
   };
+  double get fundingMultiplier => ventureThesisFundingMultiplier;
   double get leadProductMultiplier => switch (activeLead) {
     TeamLeadFocus.engineering => 1.15,
     _ => 1.0,
@@ -915,12 +998,51 @@ class GameController extends ChangeNotifier {
   double get prestigeMultiplier =>
       1 + prestigePoints * 0.08 + financeLegacyLevel * 0.04;
   bool get founderSpecializationsUnlocked => lifetimePrestiges >= 1;
+  bool get ventureThesisUnlocked =>
+      lifetimePrestiges >= 2 || portfolioCompanies >= 1;
+  bool get productMatrixUnlocked => portfolioCompanies >= 2;
+  bool get holdingPlatformUnlocked => portfolioCompanies >= 3;
+  bool get crisisRecoveryUnlocked => fundingStageIndex >= 2 || crisisLevel >= 2;
+  double get trophyCollectionMultiplier =>
+      unlockedTrophies.length >= 3 ? 1.08 : 1.0;
   int get activeSpecializationLevel => switch (activeSpecialization) {
     FounderSpecialization.builder => builderLegacyLevel,
     FounderSpecialization.operator => operatorLegacyLevel,
     FounderSpecialization.rainmaker => rainmakerLegacyLevel,
     null => 0,
   };
+  double get ventureThesisCashMultiplier => switch (activeVentureThesis) {
+    VentureThesis.productStudio => 0.98,
+    VentureThesis.distributionMachine => 1.05,
+    VentureThesis.capitalEngine => 1.12,
+    null => 1.0,
+  };
+  double get ventureThesisProductMultiplier => switch (activeVentureThesis) {
+    VentureThesis.productStudio => 1.16,
+    VentureThesis.distributionMachine => 0.98,
+    VentureThesis.capitalEngine => 1.04,
+    null => 1.0,
+  };
+  double get ventureThesisTractionMultiplier => switch (activeVentureThesis) {
+    VentureThesis.productStudio => 1.05,
+    VentureThesis.distributionMachine => 1.18,
+    VentureThesis.capitalEngine => 0.98,
+    null => 1.0,
+  };
+  double get ventureThesisFundingMultiplier => switch (activeVentureThesis) {
+    VentureThesis.productStudio => 1.02,
+    VentureThesis.distributionMachine => 1.04,
+    VentureThesis.capitalEngine => 0.88,
+    null => 1.0,
+  };
+  double get ventureThesisRecoveryMultiplier => switch (activeVentureThesis) {
+    VentureThesis.productStudio => 1.08,
+    VentureThesis.distributionMachine => 0.96,
+    VentureThesis.capitalEngine => 1.22,
+    null => 1.0,
+  };
+  double get productMatrixMultiplier => productMatrixUnlocked ? 1.12 : 1.0;
+  double get holdingPlatformMultiplier => holdingPlatformUnlocked ? 1.18 : 1.0;
   double get specializationCashMultiplier => switch (activeSpecialization) {
     FounderSpecialization.rainmaker => 1 + rainmakerLegacyLevel * 0.12,
     FounderSpecialization.operator => 1 + operatorLegacyLevel * 0.05,
@@ -1299,6 +1421,8 @@ class GameController extends ChangeNotifier {
         marketPulseCashMultiplier *
         parentCashMultiplier *
         specializationCashMultiplier *
+        ventureThesisCashMultiplier *
+        trophyCollectionMultiplier *
         activeLoopMultiplier *
         cashBurstMultiplier *
         focusCashMultiplier *
@@ -1307,6 +1431,7 @@ class GameController extends ChangeNotifier {
         prestigeMultiplier *
         ventureFundMultiplier *
         ventureNetworkCashMultiplier *
+        holdingPlatformMultiplier *
         seasonCashMultiplier *
         systemCashMultiplier;
   }
@@ -1324,12 +1449,15 @@ class GameController extends ChangeNotifier {
       founderOriginProductMultiplier *
       parentProductMultiplier *
       specializationProductMultiplier *
+      ventureThesisProductMultiplier *
+      trophyCollectionMultiplier *
       activeLoopMultiplier *
       challengeProductMultiplier *
       advisorCollectionMultiplier *
       advisorProductMultiplier *
       moraleMultiplier *
       ventureNetworkProductMultiplier *
+      productMatrixMultiplier *
       seasonProductMultiplier *
       featureBetProductMultiplier *
       leadProductMultiplier *
@@ -1350,6 +1478,7 @@ class GameController extends ChangeNotifier {
       featureBetTrustMultiplier *
       projectTrustMultiplier *
       reputationBurstMultiplier *
+      ventureThesisRecoveryMultiplier *
       activeLoopMultiplier *
       systemReputationMultiplier;
   double get creditsPerSecond =>
@@ -1391,6 +1520,8 @@ class GameController extends ChangeNotifier {
         leadTractionMultiplier *
         boardGrowthMultiplier *
         reputationBurstMultiplier *
+        ventureThesisTractionMultiplier *
+        productMatrixMultiplier *
         activeLoopMultiplier *
         playbookTractionMultiplier;
   }
@@ -1505,6 +1636,7 @@ class GameController extends ChangeNotifier {
       fundingCostMultiplier *
       founderOriginFundingMultiplier *
       seasonFundingMultiplier *
+      fundingMultiplier *
       advisorFundingMultiplier *
       capitalPolicyFundingMultiplier *
       specializationFundingMultiplier;
@@ -2408,6 +2540,72 @@ class GameController extends ChangeNotifier {
     notifyListeners();
   }
 
+  void setVentureThesis(VentureThesis thesis) {
+    if (!ventureThesisUnlocked) {
+      _log('Reach a second prestige to unlock venture theses.');
+      notifyListeners();
+      return;
+    }
+    if (activeVentureThesis == thesis) {
+      _log('${thesis.label} is already active.');
+      notifyListeners();
+      return;
+    }
+    if (activeVentureThesis != null && ventureThesisRefreshes <= 0) {
+      _log('Earn another venture thesis refresh from bigger exits.');
+      notifyListeners();
+      return;
+    }
+    if (activeVentureThesis != null) {
+      ventureThesisRefreshes -= 1;
+    }
+    activeVentureThesis = thesis;
+    _log('Venture thesis switched to ${thesis.label}.');
+    _refreshValuation();
+    save();
+    notifyListeners();
+  }
+
+  void respondToCrisis(CrisisResponseType response) {
+    if (!crisisRecoveryUnlocked) {
+      _log('Crisis recovery unlocks after Seed or when pressure rises.');
+      notifyListeners();
+      return;
+    }
+    switch (response) {
+      case CrisisResponseType.prRepair:
+        if (cash < 600) {
+          _log('PR Repair needs 600 cash.');
+          notifyListeners();
+          return;
+        }
+        cash -= 600;
+        customerTrust += 14;
+        reputation += 8;
+        crisisLevel = math.max(0, crisisLevel - 2);
+        supportBacklogSeconds = math.max(0, supportBacklogSeconds - 30);
+        break;
+      case CrisisResponseType.rescueFinancing:
+        valuation *= 0.98;
+        cash += math.max(900, fundingCost * 0.18);
+        funding += 300;
+        crisisLevel = math.max(0, crisisLevel - 1);
+        teamMorale += 4;
+        break;
+      case CrisisResponseType.teamReset:
+        teamMorale += 14;
+        customerTrust += 6;
+        qualityResetSeconds = math.max(qualityResetSeconds, 70);
+        crisisLevel = math.max(0, crisisLevel - 1);
+        founderMomentum = math.max(0, founderMomentum - 25);
+        break;
+    }
+    _log('Crisis response used: ${response.label}.');
+    _refreshValuation();
+    save();
+    notifyListeners();
+  }
+
   void setFounderSpecialization(FounderSpecialization specialization) {
     if (!founderSpecializationsUnlocked) {
       _log('Prestige once to unlock founder specializations.');
@@ -2958,9 +3156,13 @@ class GameController extends ChangeNotifier {
     founderReputation += gained;
     founderOriginTokens += 1;
     seasonTokens += 1;
+    ventureThesisRefreshes += lifetimePrestiges >= 1 ? 1 : 0;
     portfolioCompanies += 1;
     portfolioPoints += portfolioGained;
     activeSpecialization ??= FounderSpecialization.builder;
+    if (lifetimePrestiges >= 2) {
+      activeVentureThesis ??= VentureThesis.productStudio;
+    }
     _resetRunProgress(eventCooldown: 25);
     _log(
       'Prestige complete. Gained $gained Prestige Points, $gained Legacy Tokens, $gained Founder Reputation, +1 Founder Origin Token, and $portfolioGained Portfolio Points.',
@@ -3002,8 +3204,10 @@ class GameController extends ChangeNotifier {
     rainmakerLegacyLevel = 0;
     productStrategyRefreshes = 0;
     capitalPolicyRefreshes = 0;
+    ventureThesisRefreshes = 0;
     unlockedAdvisors.clear();
     unlockedPlaybooks.clear();
+    unlockedTrophies.clear();
     completedChallenges.clear();
     claimedLiveOpsMissions.clear();
     equippedAdvisor = null;
@@ -3012,6 +3216,7 @@ class GameController extends ChangeNotifier {
     activeFounderOrigin = FounderOrigin.builderLab;
     activeProductStrategy = null;
     activeCapitalPolicy = null;
+    activeVentureThesis = null;
     activeSeason = null;
     productStrategyChoicePending = false;
     capitalPolicyChoicePending = false;
@@ -3321,6 +3526,7 @@ class GameController extends ChangeNotifier {
           marketPulseTrustMultiplier *
           financeLegacyMultiplier *
           ventureFundMultiplier *
+          holdingPlatformMultiplier *
           marketPulseValuationMultiplier *
           systemValuationMultiplier,
     );
@@ -3329,6 +3535,7 @@ class GameController extends ChangeNotifier {
   void _checkGoals() {
     _unlockMetaSystems();
     _checkChallengeCompletion();
+    _checkCollectionMilestones();
     for (final quest in quests) {
       if (!completedQuests.contains(quest.id) &&
           progressFor(quest.kind) >= quest.target) {
@@ -3389,6 +3596,7 @@ class GameController extends ChangeNotifier {
     if (lastOfflineSeconds >= 600) {
       comebackBurstSeconds = math.max(comebackBurstSeconds, 90);
       founderMomentum = math.max(founderMomentum, 35);
+      _unlockTrophy(FounderTrophyId.comebackKid);
       _log('Re-entry surge active for 90s. Ride the return spike.');
     }
     offlineSummaryPending = false;
@@ -3423,6 +3631,7 @@ class GameController extends ChangeNotifier {
       'founderReputation': founderReputation,
       'founderOriginTokens': founderOriginTokens,
       'seasonTokens': seasonTokens,
+      'ventureThesisRefreshes': ventureThesisRefreshes,
       'portfolioCompanies': portfolioCompanies,
       'portfolioPoints': portfolioPoints,
       'ventureDealFlow': ventureDealFlow,
@@ -3479,6 +3688,7 @@ class GameController extends ChangeNotifier {
       'activeEvent': activeEvent?.name,
       'activeProductStrategy': activeProductStrategy?.name,
       'activeCapitalPolicy': activeCapitalPolicy?.name,
+      'activeVentureThesis': activeVentureThesis?.name,
       'activeMarketPulse': activeMarketPulse?.name,
       'activeParentDirective': activeParentDirective?.name,
       'activeSeason': activeSeason?.name,
@@ -3494,6 +3704,9 @@ class GameController extends ChangeNotifier {
           .toList(),
       'unlockedAdvisors': unlockedAdvisors
           .map((advisor) => advisor.name)
+          .toList(),
+      'unlockedTrophies': unlockedTrophies
+          .map<String>((trophy) => trophy.name)
           .toList(),
       'completedChallenges': completedChallenges
           .map((challenge) => challenge.name)
@@ -3533,6 +3746,7 @@ class GameController extends ChangeNotifier {
     founderReputation = integer('founderReputation');
     founderOriginTokens = integer('founderOriginTokens');
     seasonTokens = integer('seasonTokens');
+    ventureThesisRefreshes = integer('ventureThesisRefreshes');
     portfolioCompanies = integer('portfolioCompanies');
     portfolioPoints = integer('portfolioPoints');
     ventureDealFlow = integer('ventureDealFlow');
@@ -3632,6 +3846,13 @@ class GameController extends ChangeNotifier {
             (policy) => policy.name == activeCapitalPolicyName,
             orElse: () => CapitalPolicy.efficientGrowth,
           );
+    final activeVentureThesisName = json['activeVentureThesis'] as String?;
+    activeVentureThesis = activeVentureThesisName == null
+        ? null
+        : VentureThesis.values.firstWhere(
+            (thesis) => thesis.name == activeVentureThesisName,
+            orElse: () => VentureThesis.productStudio,
+          );
     final activeMarketPulseName = json['activeMarketPulse'] as String?;
     activeMarketPulse = activeMarketPulseName == null
         ? null
@@ -3677,6 +3898,16 @@ class GameController extends ChangeNotifier {
           (value) => AdvisorId.values.firstWhere(
             (advisor) => advisor.name == value,
             orElse: () => AdvisorId.productSage,
+          ),
+        ),
+      );
+    unlockedTrophies
+      ..clear()
+      ..addAll(
+        (json['unlockedTrophies'] as List<dynamic>? ?? const <dynamic>[]).map(
+          (value) => FounderTrophyId.values.firstWhere(
+            (trophy) => trophy.name == value,
+            orElse: () => FounderTrophyId.flowState,
           ),
         ),
       );
@@ -4152,6 +4383,21 @@ class GameController extends ChangeNotifier {
     }
   }
 
+  void _checkCollectionMilestones() {
+    if (founderFlowSeconds > 0) {
+      _unlockTrophy(FounderTrophyId.flowState);
+    }
+    if (contractChain >= 3) {
+      _unlockTrophy(FounderTrophyId.dealCloser);
+    }
+    if (fundingStageIndex >= 6) {
+      _unlockTrophy(FounderTrophyId.bellRinger);
+    }
+    if (unlockedPlaybooks.length == PlaybookId.values.length) {
+      _unlockTrophy(FounderTrophyId.playbookCollector);
+    }
+  }
+
   void _checkChallengeCompletion() {
     final challenge = activeChallenge;
     if (challenge == null || completedChallenges.contains(challenge)) return;
@@ -4267,10 +4513,17 @@ class GameController extends ChangeNotifier {
       if (productStageIndex >= 2) {
         focusTokens += 1;
       }
+      _unlockTrophy(FounderTrophyId.flowState);
       _log(
         'Founder flow triggered: 30s burst to cash, product, traction, and contracts.',
       );
     }
+  }
+
+  void _unlockTrophy(FounderTrophyId trophy) {
+    if (unlockedTrophies.contains(trophy)) return;
+    unlockedTrophies.add(trophy);
+    _log('Founder trophy unlocked: ${trophy.label}.');
   }
 
   List<String> _buildOfflineBriefLines(int seconds) {
@@ -5941,6 +6194,10 @@ class _ProductPanel extends StatelessWidget {
           'Strategy: ${controller.activeProductStrategy?.label ?? 'Pending'}',
         ),
         const SizedBox(height: 8),
+        Text(
+          'Venture thesis: ${controller.activeVentureThesis?.label ?? 'Locked'}',
+        ),
+        const SizedBox(height: 8),
         Text('Refreshes: ${controller.productStrategyRefreshes}'),
         const SizedBox(height: 8),
         Text(
@@ -6070,6 +6327,10 @@ class _FundingPanel extends StatelessWidget {
         ),
         const SizedBox(height: 8),
         Text('Policy: ${controller.activeCapitalPolicy?.label ?? 'Pending'}'),
+        const SizedBox(height: 8),
+        Text(
+          'Recovery doctrine: ${controller.activeVentureThesis?.label ?? 'Standard Ops'}',
+        ),
         const SizedBox(height: 8),
         Text('Refreshes: ${controller.capitalPolicyRefreshes}'),
         const SizedBox(height: 8),
@@ -6232,6 +6493,43 @@ class _FundingPanel extends StatelessWidget {
                     onPressed: () =>
                         controller.resolveParentDirective(directive),
                     child: const Text('Accept'),
+                  ),
+                ],
+              ),
+            ),
+        ],
+        if (controller.crisisRecoveryUnlocked) ...[
+          const SizedBox(height: 12),
+          const Text(
+            'Crisis recovery',
+            style: TextStyle(fontWeight: FontWeight.w900),
+          ),
+          const SizedBox(height: 8),
+          for (final response in CrisisResponseType.values)
+            _TileShell(
+              child: Row(
+                children: [
+                  Icon(response.icon, size: 24),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          response.label,
+                          style: const TextStyle(fontWeight: FontWeight.w900),
+                        ),
+                        Text(
+                          response.description,
+                          style: const TextStyle(fontSize: 12),
+                        ),
+                      ],
+                    ),
+                  ),
+                  FilledButton(
+                    key: Key('crisis_response_${response.name}_button'),
+                    onPressed: () => controller.respondToCrisis(response),
+                    child: const Text('Use'),
                   ),
                 ],
               ),
@@ -6440,6 +6738,18 @@ class _RoadmapPanel extends StatelessWidget {
         const SizedBox(height: 6),
         Text(
           'Long offline sessions now convert into a short re-entry surge so coming back immediately feels rewarding.',
+        ),
+        const SizedBox(height: 6),
+        Text(
+          controller.productMatrixUnlocked
+              ? 'Product matrix unlocked: portfolio experience now boosts shipping and traction across multiple product lines.'
+              : 'Two portfolio companies reveal the product-matrix layer.',
+        ),
+        const SizedBox(height: 6),
+        Text(
+          controller.holdingPlatformUnlocked
+              ? 'Holding platform unlocked: the company now compounds like a broader operating platform.'
+              : 'Three portfolio companies reveal the holding-platform layer.',
         ),
       ],
     );
@@ -6772,6 +7082,9 @@ class _PrestigePanel extends StatelessWidget {
           'Deal Flow ${controller.ventureDealFlow} | Studio Lv.${controller.ventureStudioLevel} | Syndicate Lv.${controller.syndicateNetworkLevel}',
         ),
         Text('Season tokens: ${controller.seasonTokens}'),
+        Text(
+          'Founder trophies: ${controller.unlockedTrophies.length}/${FounderTrophyId.values.length}',
+        ),
         const SizedBox(height: 8),
         Text(
           controller.founderSpecializationsUnlocked
@@ -6780,9 +7093,63 @@ class _PrestigePanel extends StatelessWidget {
         ),
         Text('Founder origin: ${controller.activeFounderOrigin.label}'),
         Text(
+          controller.ventureThesisUnlocked
+              ? 'Venture thesis: ${controller.activeVentureThesis?.label ?? 'Choose one'}'
+              : 'Second prestige unlocks venture theses and a stronger meta layer.',
+        ),
+        Text(
           'Season: ${controller.activeSeason?.label ?? 'None'} | ${controller.seasonSeconds.ceil()}s',
         ),
         Text('Target valuation: ${formatNumber(controller.prestigeTarget)}'),
+        if (controller.productMatrixUnlocked)
+          Text(
+            'Reveal: Product matrix online. Multi-product leverage is now active.',
+          ),
+        if (controller.holdingPlatformUnlocked)
+          Text(
+            'Reveal: Holding platform online. The company now compounds across portfolio structure.',
+          ),
+        if (controller.ventureThesisUnlocked) ...[
+          const SizedBox(height: 12),
+          const Text(
+            'Venture thesis',
+            style: TextStyle(fontWeight: FontWeight.w900),
+          ),
+          const SizedBox(height: 8),
+          for (final thesis in VentureThesis.values)
+            _TileShell(
+              child: Row(
+                children: [
+                  Icon(thesis.icon, size: 24),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          thesis.label,
+                          style: const TextStyle(fontWeight: FontWeight.w900),
+                        ),
+                        Text(
+                          thesis.description,
+                          style: const TextStyle(fontSize: 12),
+                        ),
+                      ],
+                    ),
+                  ),
+                  OutlinedButton(
+                    key: Key('venture_thesis_${thesis.name}_button'),
+                    onPressed: () => controller.setVentureThesis(thesis),
+                    child: Text(
+                      controller.activeVentureThesis == thesis
+                          ? 'Active'
+                          : 'Equip',
+                    ),
+                  ),
+                ],
+              ),
+            ),
+        ],
         if (controller.founderSpecializationsUnlocked) ...[
           const SizedBox(height: 12),
           for (final specialization in FounderSpecialization.values)
@@ -6879,6 +7246,41 @@ class _PrestigePanel extends StatelessWidget {
                         ? 'Active'
                         : 'Equip',
                   ),
+                ),
+              ],
+            ),
+          ),
+        const SizedBox(height: 12),
+        const Text(
+          'Founder trophies',
+          style: TextStyle(fontWeight: FontWeight.w900),
+        ),
+        const SizedBox(height: 8),
+        for (final trophy in FounderTrophyId.values)
+          _TileShell(
+            child: Row(
+              children: [
+                Icon(trophy.icon, size: 24),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        trophy.label,
+                        style: const TextStyle(fontWeight: FontWeight.w900),
+                      ),
+                      Text(
+                        trophy.description,
+                        style: const TextStyle(fontSize: 12),
+                      ),
+                    ],
+                  ),
+                ),
+                Icon(
+                  controller.unlockedTrophies.contains(trophy)
+                      ? Icons.check_circle
+                      : Icons.radio_button_unchecked,
                 ),
               ],
             ),

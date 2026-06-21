@@ -609,4 +609,57 @@ void main() {
 
     expect(controller.contractChain, 0);
   });
+
+  test('second prestige unlocks venture thesis and reveal layers', () {
+    final controller = GameController();
+
+    controller.valuation = controller.prestigeTarget;
+    controller.prestige();
+    controller.valuation = controller.prestigeTarget;
+    controller.prestige();
+
+    expect(controller.ventureThesisUnlocked, isTrue);
+    expect(controller.ventureThesisRefreshes, greaterThan(0));
+
+    controller.setVentureThesis(VentureThesis.capitalEngine);
+    expect(controller.activeVentureThesis, VentureThesis.capitalEngine);
+    expect(controller.fundingMultiplier, lessThan(1));
+
+    controller.portfolioCompanies = 2;
+    expect(controller.productMatrixUnlocked, isTrue);
+    expect(controller.productMatrixMultiplier, greaterThan(1));
+
+    controller.portfolioCompanies = 3;
+    expect(controller.holdingPlatformUnlocked, isTrue);
+    expect(controller.holdingPlatformMultiplier, greaterThan(1));
+  });
+
+  test(
+    'trophies and crisis recovery add long-term goals and comeback tools',
+    () {
+      final controller = GameController();
+
+      controller.productStageIndex = 1;
+      for (var i = 0; i < 40; i++) {
+        controller.founderTap();
+      }
+      expect(controller.unlockedTrophies, contains(FounderTrophyId.flowState));
+
+      controller.lastOfflineSeconds = 900;
+      controller.offlineSummaryPending = true;
+      controller.dismissOfflineSummary();
+      expect(
+        controller.unlockedTrophies,
+        contains(FounderTrophyId.comebackKid),
+      );
+
+      controller.cash = 2000;
+      controller.crisisLevel = 3;
+      controller.customerTrust = 45;
+      final trustBefore = controller.customerTrust;
+      controller.respondToCrisis(CrisisResponseType.prRepair);
+      expect(controller.customerTrust, greaterThan(trustBefore));
+      expect(controller.crisisLevel, lessThan(3));
+    },
+  );
 }
